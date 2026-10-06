@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo do Trator Infinito</title>
+    <!-- Importa o motor de jogos Phaser 3 -->
+    <script src="https://jsdelivr.net"></script>
+    <style>
+        body { margin: 0; background-color: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        canvas { box-shadow: 0px 10px 30px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+
+<script>
+const config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    physics: {
+        default: 'arcade',
+         Arcade: { gravity: { y: 600 }, debug: false }
+    },
+    scene: { preload: preload, create: create, update: update }
+};
+
+const game = new Phaser.Game(config);
+let tractor, cursors, groundGroup, obstaclesGroup;
+let nextObstacleX = 600;
+
+function preload() {
+    // O jogo usa formas geométricas geradas por código para não precisar de arquivos externos de imagem
+}
+
+function create() {
+    // 1. Fundo (Céu)
+    this.cameras.main.setBackgroundColor('#87CEEB');
+
+    // 2. Grupos de física para o chão e os obstáculos
+    groundGroup = this.physics.add.staticGroup();
+    obstaclesGroup = this.physics.add.staticGroup();
+
+    // 3. Criar blocos iniciais do chão plano (Serão gerados infinitamente)
+    for (let i = 0; i < 3; i++) {
+        createGroundBlock(this, i * 800);
+    }
+
+    // 4. Desenhar e Criar o Trator (Representado por um retângulo verde com cabine e rodas)
+    let tractorTexture = this.make.graphics({ x: 0, y: 0, add: false });
+    tractorTexture.fillStyle(0x2e7d32, 1); // Corpo Verde
+    tractorTexture.fillRect(0, 20, 60, 30);
+    tractorTexture.fillStyle(0x1565c0, 1); // Cabine Azul
+    tractorTexture.fillRect(30, 0, 25, 20);
+    tractorTexture.fillStyle(0x111111, 1); // Rodas Pretas
+    tractorTexture.fillCircle(15, 45, 12);
+    tractorTexture.fillCircle(45, 45, 12);
+    tractorTexture.generateTexture('tractor', 65, 60);
+
+    tractor = this.physics.add.sprite(200, 300, 'tractor');
+    tractor.setCollideWorldBounds(false);
+    tractor.setBounce(0.1);
+
+    // 5. Configurar Colisões
+    this.physics.add.collider(tractor, groundGroup);
+    
+    // Se o trator bater em um obstáculo, ele é empurrado ou para
+    this.physics.add.collider(tractor, obstaclesGroup, hitObstacle, null, this);
+
+    // 6. Controles do Teclado
+    cursors = this.input.keyboard.createCursorKeys();
+
+    // 7. Câmera seguindo o Trator
+    this.cameras.main.startFollow(tractor, true, 0.05, 0.05, -200, 100);
+}
+
+function update() {
+    // Movimentação do Trator
+    if (cursors.left.isDown) {
+        tractor.setVelocityX(-150);
+    } else if (cursors.right.isDown) {
+        tractor.setVelocityX(200); // Anda para a frente
+    } else {
+        tractor.setVelocityX(0); // Para se soltar a tecla
+    }
+
+    // Pular/Subir obstáculos (Tecla para cima)
+    if (cursors.up.isDown && tractor.body.touching.down) {
+        tractor.setVelocityY(-300);
+    }
+
+    // LÓGICA DE MAPA INFINITO
+    // Se o trator avançar, cria mais chão e gera obstáculos dinamicamente à frente
+    if (tractor.x > nextObstacleX - 800) {
+        createGroundBlock(this, nextObstacleX + 800);
+        generateRandomObstacle(this, nextObstacleX);
+        nextObstacleX += Phaser.Math.Between(400, 700); // Distância do próximo obstáculo
+    }
+}
+
+// Função para criar o chão contínuo
+function createGroundBlock(scene, x) {
+    let groundGraphic = scene.make.graphics({ x: 0, y: 0, add: false });
+    groundGraphic.fillStyle(0x795548, 1); // Terra
+    groundGraphic.fillRect(0, 20, 800, 100);
+    groundGraphic.fillStyle(0x4caf50, 1); // Grama
+    groundGraphic.fillRect(0, 0, 800, 20);
+    
+    let key = 'ground_' + x;
+    groundGraphic.generateTexture(key, 800, 120);
+    
+    let g = groundGroup.create(x + 400, 550, key);
+    g.refreshBody();
+}
+
+// Função para gerar os obstáculos pedidos (Pedras, Subidas, Rios)
+function generateRandomObstacle(scene, x) {
+    let type = Phaser.Math.Between(1, 3); // 1 = Pedra, 2 = Rampa/Subida, 3 = Rio/Buraco
+    let obsGraphic = scene.make.graphics({ x: 0, y: 0, add: false });
+
+    if (type === 1) {
+        // Pedra Pequena
+        obsGraphic.fillStyle(0x757575, 1);
+        obsGraphic.fillCircle(15, 15, 15);
+        obsGraphic.generateTexture('rock_' + x, 30, 30);
+        let obs = obstaclesGroup.create(x, 475, 'rock_' + x);
+        obs.refreshBody();
+    } 
+    else if (type === 2) {
+        // Subida / Rampa de terra
+        obsGraphic.fillStyle(0x8d6e63, 1);
+        obsGraphic.fillTriangle(0, 40, 40, 0, 40, 40); // Desenha triângulo de subida
+        obsGraphic.fillRect(40, 0, 40, 40); // Platô
+        obsGraphic.generateTexture('ramp_' + x, 80, 40);
+        let obs = obstaclesGroup.create(x, 470, 'ramp_' + x);
+        obs.refreshBody();
+    } 
+    else if (type === 3) {
+        // Rio / Obstáculo de Água (Representado por um bloco azul que barra o trator se ele não pular)
+        obsGraphic.fillStyle(0x29b6f6, 1);
+        obsGraphic.fillRect(0, 0, 50, 25);
+        obsGraphic.generateTexture('river_' + x, 50, 25);
+        let obs = obstaclesGroup.create(x, 478, 'river_' + x);
+        obs.refreshBody();
+    }
+}
+
+function hitObstacle(tractor, obstacle) {
+    // Lógica opcional para quando bater (ex: reduzir velocidade)
+    if(tractor.body.touching.right) {
+        tractor.setVelocityX(0); 
+    }
+}
+</script>
+
+</body>
+</html>
