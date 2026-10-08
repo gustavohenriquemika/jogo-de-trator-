@@ -9,19 +9,19 @@
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 
 <style>
-html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: #111;
-    touch-action: none;
+html,body{
+    margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#111;
+    touch-action:none;
 }
 
-canvas {
-    display: block;
-    margin: auto;
+canvas{
+    display:block;
+    margin:auto;
 }
 </style>
 </head>
@@ -34,13 +34,8 @@ canvas {
    DADOS
 ========================================================= */
 
-let totalCoins = Number(
-    localStorage.getItem("tratorCoins") || 0
-);
-
-let highScore = Number(
-    localStorage.getItem("tratorRecord") || 0
-);
+let totalCoins = Number(localStorage.getItem("tratorCoins") || 0);
+let highScore = Number(localStorage.getItem("tratorRecord") || 0);
 
 let selectedTractor =
     localStorage.getItem("tratorSelecionado") || "green";
@@ -60,7 +55,6 @@ let coins = 0;
 let lives = 3;
 
 let gameSpeed = 230;
-let distance = 0;
 
 let scoreText;
 let coinsText;
@@ -69,31 +63,27 @@ let speedText;
 
 let gameOver = false;
 
+/* PULO DUPLO */
+let jumpsUsed = 0;
+const MAX_JUMPS = 2;
+
 let lastObstacleX = 1000;
 let lastGroundX = 0;
 
 let rain = false;
-
 let rainParticles;
-
-let jumpCount = 0;
-const maxJumps = 2;
 
 let audioCtx = null;
 
 
 /* =========================================================
-   CORES DOS TRATORES
+   CORES
 ========================================================= */
 
 const tractorColors = {
-
     green: 0x2e8b3c,
-
     red: 0xd62828,
-
     blue: 0x1976d2,
-
     yellow: 0xf5b700
 };
 
@@ -102,65 +92,46 @@ const tractorColors = {
    SOM
 ========================================================= */
 
-function startAudio() {
+function startAudio(){
 
-    try {
+    try{
 
-        if (!audioCtx) {
+        if(!audioCtx){
 
-            audioCtx =
-                new (
-                    window.AudioContext ||
-                    window.webkitAudioContext
-                )();
+            audioCtx = new (
+                window.AudioContext ||
+                window.webkitAudioContext
+            )();
         }
 
-        if (
-            audioCtx.state === "suspended"
-        ) {
-
+        if(audioCtx.state === "suspended"){
             audioCtx.resume();
         }
 
-    } catch(e) {}
+    }catch(e){}
 }
 
 
-function sound(type) {
+function sound(type){
 
-    try {
+    try{
 
         startAudio();
 
-        let osc =
-            audioCtx.createOscillator();
-
-        let gain =
-            audioCtx.createGain();
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
 
         osc.connect(gain);
-
-        gain.connect(
-            audioCtx.destination
-        );
+        gain.connect(audioCtx.destination);
 
         let frequency = 300;
 
-        if (type === "coin")
-            frequency = 800;
+        if(type === "coin") frequency = 800;
+        if(type === "jump") frequency = 420;
+        if(type === "hit") frequency = 100;
+        if(type === "buy") frequency = 650;
 
-        if (type === "jump")
-            frequency = 420;
-
-        if (type === "hit")
-            frequency = 100;
-
-        if (type === "buy")
-            frequency = 650;
-
-        osc.frequency.value =
-            frequency;
-
+        osc.frequency.value = frequency;
         osc.type = "square";
 
         gain.gain.setValueAtTime(
@@ -179,7 +150,7 @@ function sound(type) {
             audioCtx.currentTime + 0.15
         );
 
-    } catch(e) {}
+    }catch(e){}
 }
 
 
@@ -187,7 +158,7 @@ function sound(type) {
    SALVAR
 ========================================================= */
 
-function saveData() {
+function saveData(){
 
     localStorage.setItem(
         "tratorCoins",
@@ -215,156 +186,50 @@ function saveData() {
    TEXTURAS
 ========================================================= */
 
-function createTextures(scene) {
+function createTextures(scene){
 
-    /* TRATOR */
+    /* ================= TRATOR ================= */
 
     let g = scene.make.graphics({
-        x: 0,
-        y: 0,
-        add: false
+        x:0,
+        y:0,
+        add:false
     });
 
-    let color =
-        tractorColors[selectedTractor];
-
-
-    /* Corpo */
+    let color = tractorColors[selectedTractor];
 
     g.fillStyle(color);
-
-    g.fillRoundedRect(
-        22,
-        25,
-        105,
-        48,
-        8
-    );
-
-
-    /* Capô */
+    g.fillRoundedRect(22,25,105,48,8);
 
     g.fillStyle(color);
-
-    g.fillRoundedRect(
-        82,
-        12,
-        55,
-        38,
-        7
-    );
-
-
-    /* Cabine */
+    g.fillRoundedRect(82,12,55,38,7);
 
     g.fillStyle(0x333333);
-
-    g.fillRect(
-        38,
-        0,
-        55,
-        42
-    );
-
-
-    /* Vidro */
+    g.fillRect(38,0,55,42);
 
     g.fillStyle(0x9ddcff);
-
-    g.fillRect(
-        45,
-        6,
-        41,
-        29
-    );
-
-
-    /* Para-choque */
+    g.fillRect(45,6,41,29);
 
     g.fillStyle(0x444444);
-
-    g.fillRect(
-        126,
-        42,
-        22,
-        8
-    );
-
-
-    /* Farol */
+    g.fillRect(126,42,22,8);
 
     g.fillStyle(0xffff99);
-
-    g.fillCircle(
-        130,
-        24,
-        6
-    );
-
-
-    /* Roda traseira */
+    g.fillCircle(130,24,6);
 
     g.fillStyle(0x171717);
-
-    g.fillCircle(
-        35,
-        78,
-        27
-    );
+    g.fillCircle(35,78,27);
 
     g.fillStyle(0x777777);
-
-    g.fillCircle(
-        35,
-        78,
-        13
-    );
-
-
-    /* Roda dianteira */
+    g.fillCircle(35,78,13);
 
     g.fillStyle(0x171717);
-
-    g.fillCircle(
-        116,
-        76,
-        18
-    );
+    g.fillCircle(116,76,18);
 
     g.fillStyle(0x777777);
-
-    g.fillCircle(
-        116,
-        76,
-        9
-    );
-
-
-    /* Escapamento */
+    g.fillCircle(116,76,9);
 
     g.fillStyle(0x555555);
-
-    g.fillRect(
-        105,
-        0,
-        7,
-        25
-    );
-
-
-    /* Fumaça */
-
-    g.fillStyle(
-        0xaaaaaa,
-        0.7
-    );
-
-    g.fillCircle(
-        109,
-        -6,
-        5
-    );
-
+    g.fillRect(105,0,7,25);
 
     g.generateTexture(
         "tractor",
@@ -375,49 +240,27 @@ function createTextures(scene) {
     g.destroy();
 
 
-    /* CHÃO */
+    /* ================= CHÃO ================= */
 
     g = scene.make.graphics({
-        x: 0,
-        y: 0,
-        add: false
+        x:0,
+        y:0,
+        add:false
     });
 
     g.fillStyle(0x7a4a25);
-
-    g.fillRect(
-        0,
-        0,
-        500,
-        70
-    );
+    g.fillRect(0,0,500,70);
 
     g.fillStyle(0x3d8b32);
-
-    g.fillRect(
-        0,
-        0,
-        500,
-        12
-    );
+    g.fillRect(0,0,500,12);
 
     g.fillStyle(0x65a93d);
 
-    for (
-        let i = 0;
-        i < 20;
-        i++
-    ) {
+    for(let i=0;i<20;i++){
 
         g.fillRect(
-            Phaser.Math.Between(
-                0,
-                490
-            ),
-            Phaser.Math.Between(
-                15,
-                60
-            ),
+            Phaser.Math.Between(0,490),
+            Phaser.Math.Between(15,60),
             3,
             8
         );
@@ -432,29 +275,19 @@ function createTextures(scene) {
     g.destroy();
 
 
-    /* PEDRA */
+    /* ================= PEDRA ================= */
 
     g = scene.make.graphics({
-        x: 0,
-        y: 0,
-        add: false
+        x:0,
+        y:0,
+        add:false
     });
 
     g.fillStyle(0x777777);
-
-    g.fillCircle(
-        35,
-        35,
-        32
-    );
+    g.fillCircle(35,35,32);
 
     g.fillStyle(0x999999);
-
-    g.fillCircle(
-        24,
-        22,
-        9
-    );
+    g.fillCircle(24,22,9);
 
     g.generateTexture(
         "rock",
@@ -465,34 +298,25 @@ function createTextures(scene) {
     g.destroy();
 
 
-    /* RAMPA */
+    /* ================= RAMPA ================= */
 
     g = scene.make.graphics({
-        x: 0,
-        y: 0,
-        add: false
+        x:0,
+        y:0,
+        add:false
     });
 
     g.fillStyle(0x704214);
 
     g.beginPath();
-
-    g.moveTo(0, 60);
-    g.lineTo(120, 60);
-    g.lineTo(120, 0);
-
+    g.moveTo(0,60);
+    g.lineTo(120,60);
+    g.lineTo(120,0);
     g.closePath();
-
     g.fillPath();
 
     g.fillStyle(0x3e8f35);
-
-    g.fillRect(
-        0,
-        54,
-        120,
-        7
-    );
+    g.fillRect(0,54,120,7);
 
     g.generateTexture(
         "ramp",
@@ -503,46 +327,24 @@ function createTextures(scene) {
     g.destroy();
 
 
-    /* ÁGUA */
+    /* ================= ÁGUA ================= */
 
     g = scene.make.graphics({
-        x: 0,
-        y: 0,
-        add: false
+        x:0,
+        y:0,
+        add:false
     });
 
     g.fillStyle(0x2879c7);
+    g.fillRect(0,0,130,45);
 
-    g.fillRect(
-        0,
-        0,
-        130,
-        45
-    );
+    g.lineStyle(3,0x7ddfff);
 
-    g.lineStyle(
-        3,
-        0x7ddfff
-    );
-
-    for (
-        let i = 0;
-        i < 4;
-        i++
-    ) {
+    for(let i=0;i<4;i++){
 
         g.beginPath();
-
-        g.moveTo(
-            5,
-            8 + i * 10
-        );
-
-        g.lineTo(
-            120,
-            8 + i * 10
-        );
-
+        g.moveTo(5,8+i*10);
+        g.lineTo(120,8+i*10);
         g.strokePath();
     }
 
@@ -555,32 +357,19 @@ function createTextures(scene) {
     g.destroy();
 
 
-    /* MOEDA */
+    /* ================= MOEDA ================= */
 
     g = scene.make.graphics({
-        x: 0,
-        y: 0,
-        add: false
+        x:0,
+        y:0,
+        add:false
     });
 
     g.fillStyle(0xffd700);
+    g.fillCircle(15,15,13);
 
-    g.fillCircle(
-        15,
-        15,
-        13
-    );
-
-    g.lineStyle(
-        3,
-        0xfff59d
-    );
-
-    g.strokeCircle(
-        15,
-        15,
-        9
-    );
+    g.lineStyle(3,0xfff59d);
+    g.strokeCircle(15,15,9);
 
     g.generateTexture(
         "coin",
@@ -596,22 +385,19 @@ function createTextures(scene) {
    MENU
 ========================================================= */
 
-class MenuScene extends Phaser.Scene {
+class MenuScene extends Phaser.Scene{
 
-    constructor() {
-
+    constructor(){
         super("MenuScene");
     }
 
-
-    create() {
+    create(){
 
         createTextures(this);
 
         this.cameras.main.setBackgroundColor(
             "#79c8f2"
         );
-
 
         this.add.rectangle(
             400,
@@ -621,7 +407,6 @@ class MenuScene extends Phaser.Scene {
             0x6aaa3a
         );
 
-
         this.add.circle(
             690,
             90,
@@ -629,20 +414,18 @@ class MenuScene extends Phaser.Scene {
             0xffdd55
         );
 
-
         this.add.text(
             400,
             80,
             "🚜 JOGO DO TRATOR INFINITO",
             {
-                fontSize: "34px",
-                fontStyle: "bold",
-                color: "#ffffff",
-                stroke: "#333333",
-                strokeThickness: 6
+                fontSize:"34px",
+                fontStyle:"bold",
+                color:"#ffffff",
+                stroke:"#333333",
+                strokeThickness:6
             }
         ).setOrigin(0.5);
-
 
         let preview =
             this.add.image(
@@ -653,18 +436,16 @@ class MenuScene extends Phaser.Scene {
 
         preview.setScale(1.35);
 
-
         this.add.text(
             400,
             330,
             "💰 " + totalCoins + " moedas",
             {
-                fontSize: "25px",
-                color: "#fff",
-                fontStyle: "bold"
+                fontSize:"25px",
+                color:"#fff",
+                fontStyle:"bold"
             }
         ).setOrigin(0.5);
-
 
         let play =
             this.add.text(
@@ -672,36 +453,29 @@ class MenuScene extends Phaser.Scene {
                 395,
                 "▶ JOGAR",
                 {
-                    fontSize: "32px",
-                    backgroundColor: "#249b45",
-                    padding: {
-                        left: 35,
-                        right: 35,
-                        top: 12,
-                        bottom: 12
+                    fontSize:"32px",
+                    backgroundColor:"#249b45",
+                    padding:{
+                        left:35,
+                        right:35,
+                        top:12,
+                        bottom:12
                     },
-                    color: "#ffffff"
+                    color:"#ffffff"
                 }
             ).setOrigin(0.5);
 
-
         play.setInteractive({
-            useHandCursor: true
+            useHandCursor:true
         });
-
 
         play.on(
             "pointerdown",
-            () => {
-
+            ()=>{
                 startAudio();
-
-                this.scene.start(
-                    "GameScene"
-                );
+                this.scene.start("GameScene");
             }
         );
-
 
         let shop =
             this.add.text(
@@ -709,29 +483,23 @@ class MenuScene extends Phaser.Scene {
                 475,
                 "🛒 LOJA DE TRATORES",
                 {
-                    fontSize: "23px",
-                    backgroundColor: "#8b5a2b",
-                    padding: 12,
-                    color: "#ffffff"
+                    fontSize:"23px",
+                    backgroundColor:"#8b5a2b",
+                    padding:12,
+                    color:"#ffffff"
                 }
             ).setOrigin(0.5);
 
-
         shop.setInteractive({
-            useHandCursor: true
+            useHandCursor:true
         });
-
 
         shop.on(
             "pointerdown",
-            () => {
-
-                this.scene.start(
-                    "ShopScene"
-                );
+            ()=>{
+                this.scene.start("ShopScene");
             }
         );
-
 
         this.add.text(
             400,
@@ -739,11 +507,11 @@ class MenuScene extends Phaser.Scene {
             "Recorde: " +
             highScore +
             " metros\n" +
-            "↑ / ESPAÇO = pular  •  Toque = pular",
+            "↑ / ESPAÇO = pular • Toque = pular",
             {
-                fontSize: "16px",
-                align: "center",
-                color: "#ffffff"
+                fontSize:"16px",
+                align:"center",
+                color:"#ffffff"
             }
         ).setOrigin(0.5);
     }
@@ -754,15 +522,13 @@ class MenuScene extends Phaser.Scene {
    LOJA
 ========================================================= */
 
-class ShopScene extends Phaser.Scene {
+class ShopScene extends Phaser.Scene{
 
-    constructor() {
-
+    constructor(){
         super("ShopScene");
     }
 
-
-    create() {
+    create(){
 
         createTextures(this);
 
@@ -770,65 +536,60 @@ class ShopScene extends Phaser.Scene {
             "#263238"
         );
 
-
         this.add.text(
             400,
             55,
             "🛒 LOJA DE TRATORES",
             {
-                fontSize: "32px",
-                color: "#ffffff",
-                fontStyle: "bold"
+                fontSize:"32px",
+                color:"#ffffff",
+                fontStyle:"bold"
             }
         ).setOrigin(0.5);
-
 
         this.add.text(
             400,
             105,
             "💰 " + totalCoins,
             {
-                fontSize: "24px",
-                color: "#ffd700"
+                fontSize:"24px",
+                color:"#ffd700"
             }
         ).setOrigin(0.5);
-
 
         const types = [
 
             {
-                id: "green",
-                name: "Verde",
-                price: 0
+                id:"green",
+                name:"Verde",
+                price:0
             },
 
             {
-                id: "red",
-                name: "Vermelho",
-                price: 50
+                id:"red",
+                name:"Vermelho",
+                price:50
             },
 
             {
-                id: "blue",
-                name: "Azul",
-                price: 100
+                id:"blue",
+                name:"Azul",
+                price:100
             },
 
             {
-                id: "yellow",
-                name: "Amarelo",
-                price: 200
+                id:"yellow",
+                name:"Amarelo",
+                price:200
             }
         ];
 
-
         types.forEach(
-            (item, index) => {
+            (item,index)=>{
 
                 let x =
                     120 +
                     index * 190;
-
 
                 this.add.rectangle(
                     x,
@@ -838,7 +599,6 @@ class ShopScene extends Phaser.Scene {
                     0x37474f
                 );
 
-
                 let preview =
                     this.add.image(
                         x,
@@ -846,50 +606,33 @@ class ShopScene extends Phaser.Scene {
                         "tractor"
                     );
 
-                preview.setScale(
-                    0.75
-                );
-
+                preview.setScale(0.75);
 
                 this.add.text(
                     x,
                     325,
                     item.name,
                     {
-                        fontSize: "21px",
-                        color: "#ffffff"
+                        fontSize:"21px",
+                        color:"#ffffff"
                     }
                 ).setOrigin(0.5);
 
-
                 let text;
 
+                if(unlocked[item.id]){
 
-                if (
-                    unlocked[item.id]
-                ) {
+                    text =
+                        selectedTractor === item.id
+                        ? "✓ USANDO"
+                        : "USAR";
 
-                    if (
-                        selectedTractor ===
-                        item.id
-                    ) {
-
-                        text =
-                            "✓ USANDO";
-
-                    } else {
-
-                        text =
-                            "USAR";
-                    }
-
-                } else {
+                }else{
 
                     text =
                         "💰 " +
                         item.price;
                 }
-
 
                 let button =
                     this.add.text(
@@ -897,37 +640,32 @@ class ShopScene extends Phaser.Scene {
                         380,
                         text,
                         {
-                            fontSize: "17px",
+                            fontSize:"17px",
                             backgroundColor:
                                 selectedTractor === item.id
-                                    ? "#388e3c"
-                                    : "#546e7a",
-                            padding: 9,
-                            color: "#ffffff"
+                                ? "#388e3c"
+                                : "#546e7a",
+                            padding:9,
+                            color:"#ffffff"
                         }
                     ).setOrigin(0.5);
 
-
                 button.setInteractive({
-                    useHandCursor: true
+                    useHandCursor:true
                 });
-
 
                 button.on(
                     "pointerdown",
-                    () => {
+                    ()=>{
 
                         startAudio();
 
+                        if(!unlocked[item.id]){
 
-                        if (
-                            !unlocked[item.id]
-                        ) {
-
-                            if (
+                            if(
                                 totalCoins >=
                                 item.price
-                            ) {
+                            ){
 
                                 totalCoins -=
                                     item.price;
@@ -945,7 +683,7 @@ class ShopScene extends Phaser.Scene {
                                 this.scene.restart();
                             }
 
-                        } else {
+                        }else{
 
                             selectedTractor =
                                 item.id;
@@ -961,33 +699,27 @@ class ShopScene extends Phaser.Scene {
             }
         );
 
-
         let back =
             this.add.text(
                 400,
                 540,
                 "← VOLTAR",
                 {
-                    fontSize: "23px",
-                    backgroundColor: "#455a64",
-                    padding: 12,
-                    color: "#ffffff"
+                    fontSize:"23px",
+                    backgroundColor:"#455a64",
+                    padding:12,
+                    color:"#ffffff"
                 }
             ).setOrigin(0.5);
 
-
         back.setInteractive({
-            useHandCursor: true
+            useHandCursor:true
         });
-
 
         back.on(
             "pointerdown",
-            () => {
-
-                this.scene.start(
-                    "MenuScene"
-                );
+            ()=>{
+                this.scene.start("MenuScene");
             }
         );
     }
@@ -995,21 +727,18 @@ class ShopScene extends Phaser.Scene {
 
 
 /* =========================================================
-   GAME SCENE
+   JOGO
 ========================================================= */
 
-class GameScene extends Phaser.Scene {
+class GameScene extends Phaser.Scene{
 
-    constructor() {
-
+    constructor(){
         super("GameScene");
     }
 
-
-    create() {
+    create(){
 
         createTextures(this);
-
 
         score = 0;
         coins = 0;
@@ -1017,23 +746,19 @@ class GameScene extends Phaser.Scene {
 
         gameSpeed = 230;
 
-        distance = 0;
-
         gameOver = false;
 
         lastObstacleX = 1000;
-
         lastGroundX = 0;
 
-        jumpCount = 0;
-
+        /* IMPORTANTE:
+           Começa sem nenhum pulo usado.
+        */
+        jumpsUsed = 0;
 
         this.cameras.main.setBackgroundColor(
             "#7bc8f6"
         );
-
-
-        /* Sol */
 
         this.sun =
             this.add.circle(
@@ -1045,9 +770,6 @@ class GameScene extends Phaser.Scene {
 
         this.sun.setScrollFactor(0);
 
-
-        /* Lua */
-
         this.moon =
             this.add.circle(
                 680,
@@ -1057,7 +779,6 @@ class GameScene extends Phaser.Scene {
             );
 
         this.moon.setScrollFactor(0);
-
         this.moon.setVisible(false);
 
 
@@ -1071,7 +792,7 @@ class GameScene extends Phaser.Scene {
 
         coinsGroup =
             this.physics.add.group({
-                allowGravity: false
+                allowGravity:false
             });
 
 
@@ -1086,39 +807,29 @@ class GameScene extends Phaser.Scene {
                 "tractor"
             );
 
-        tractor.setScale(
-            0.72
-        );
+        tractor.setScale(0.72);
 
-        tractor.setCollideWorldBounds(
-            false
-        );
-
+        tractor.setCollideWorldBounds(false);
 
         /*
-           COLISÃO MENOR.
+           HITBOX DO TRATOR.
 
-           Antes o trator podia bater com partes
-           do desenho que estavam muito longe das rodas.
-
-           Agora somente a região inferior do trator
-           é usada para detectar obstáculos.
+           Somente a parte inferior entra
+           na colisão.
         */
 
         tractor.body.setSize(
-            105,
-            48
+            100,
+            35
         );
 
         tractor.body.setOffset(
-            25,
-            45
+            28,
+            55
         );
 
 
-        /* =====================================================
-           CÂMERA
-        ===================================================== */
+        /* CÂMERA */
 
         this.cameras.main.startFollow(
             tractor,
@@ -1126,7 +837,6 @@ class GameScene extends Phaser.Scene {
             0.08,
             0.08
         );
-
 
         this.cameras.main.setBounds(
             0,
@@ -1136,15 +846,13 @@ class GameScene extends Phaser.Scene {
         );
 
 
-        /* =====================================================
-           CHÃO
-        ===================================================== */
+        /* CHÃO */
 
-        for (
-            let x = 0;
-            x < 3000;
-            x += 500
-        ) {
+        for(
+            let x=0;
+            x<3000;
+            x+=500
+        ){
 
             addGround(
                 this,
@@ -1153,18 +861,16 @@ class GameScene extends Phaser.Scene {
         }
 
 
-        /* =====================================================
-           OBSTÁCULOS INICIAIS
-        ===================================================== */
+        /* OBSTÁCULOS */
 
-        for (
-            let x = 900;
-            x < 2800;
-            x += Phaser.Math.Between(
-                450,
-                700
+        for(
+            let x=900;
+            x<2800;
+            x+=Phaser.Math.Between(
+                500,
+                750
             )
-        ) {
+        ){
 
             createObstacle(
                 this,
@@ -1173,19 +879,18 @@ class GameScene extends Phaser.Scene {
         }
 
 
-        /* COLISÃO COM CHÃO */
+        /* COLISÃO CHÃO */
 
         this.physics.add.collider(
             tractor,
             groundPieces,
-            () => {
-
-                jumpCount = 0;
+            ()=>{
+                jumpsUsed = 0;
             }
         );
 
 
-        /* COLISÃO COM OBSTÁCULOS */
+        /* COLISÃO OBSTÁCULOS */
 
         this.physics.add.collider(
             tractor,
@@ -1207,9 +912,7 @@ class GameScene extends Phaser.Scene {
         );
 
 
-        /* =====================================================
-           HUD
-        ===================================================== */
+        /* HUD */
 
         scoreText =
             this.add.text(
@@ -1217,13 +920,12 @@ class GameScene extends Phaser.Scene {
                 20,
                 "📏 0 m",
                 {
-                    fontSize: "22px",
-                    color: "#ffffff",
-                    stroke: "#000000",
-                    strokeThickness: 4
+                    fontSize:"22px",
+                    color:"#ffffff",
+                    stroke:"#000000",
+                    strokeThickness:4
                 }
             );
-
 
         coinsText =
             this.add.text(
@@ -1231,13 +933,12 @@ class GameScene extends Phaser.Scene {
                 50,
                 "💰 0",
                 {
-                    fontSize: "22px",
-                    color: "#ffffff",
-                    stroke: "#000000",
-                    strokeThickness: 4
+                    fontSize:"22px",
+                    color:"#ffffff",
+                    stroke:"#000000",
+                    strokeThickness:4
                 }
             );
-
 
         livesText =
             this.add.text(
@@ -1245,12 +946,11 @@ class GameScene extends Phaser.Scene {
                 80,
                 "❤️❤️❤️",
                 {
-                    fontSize: "22px",
-                    stroke: "#000000",
-                    strokeThickness: 4
+                    fontSize:"22px",
+                    stroke:"#000000",
+                    strokeThickness:4
                 }
             );
-
 
         speedText =
             this.add.text(
@@ -1258,28 +958,24 @@ class GameScene extends Phaser.Scene {
                 110,
                 "🚜 Velocidade: 1x",
                 {
-                    fontSize: "18px",
-                    color: "#ffffff",
-                    stroke: "#000000",
-                    strokeThickness: 3
+                    fontSize:"18px",
+                    color:"#ffffff",
+                    stroke:"#000000",
+                    strokeThickness:3
                 }
             );
-
 
         [
             scoreText,
             coinsText,
             livesText,
             speedText
-
         ].forEach(
-            t => t.setScrollFactor(0)
+            t=>t.setScrollFactor(0)
         );
 
 
-        /* =====================================================
-           BOTÃO MOBILE
-        ===================================================== */
+        /* BOTÃO DE PULO */
 
         let jumpButton =
             this.add.text(
@@ -1287,74 +983,61 @@ class GameScene extends Phaser.Scene {
                 500,
                 "⬆\nPULAR",
                 {
-                    fontSize: "23px",
-                    align: "center",
-                    backgroundColor:
-                        "#ffffff88",
-                    padding: 12,
-                    color: "#000000"
+                    fontSize:"23px",
+                    align:"center",
+                    backgroundColor:"#ffffff88",
+                    padding:12,
+                    color:"#000000"
                 }
             ).setOrigin(0.5);
-
 
         jumpButton.setScrollFactor(0);
 
         jumpButton.setInteractive();
 
-
         jumpButton.on(
             "pointerdown",
-            () => {
-
-                jump.call(this);
+            ()=>{
+                jump();
             }
         );
 
 
-        /* =====================================================
-           TECLADO
-        ===================================================== */
+        /* TECLADO */
 
         this.input.keyboard.on(
             "keydown-UP",
-            () => {
-
-                jump.call(this);
+            ()=>{
+                jump();
             }
         );
-
 
         this.input.keyboard.on(
             "keydown-SPACE",
-            () => {
-
-                jump.call(this);
+            ()=>{
+                jump();
             }
         );
 
 
-        /* =====================================================
-           TOQUE
-        ===================================================== */
+        /* TOQUE */
 
         this.input.on(
             "pointerdown",
-            (pointer) => {
+            pointer=>{
 
-                if (
+                if(
                     pointer.x >
                     this.scale.width * 0.55
-                ) {
+                ){
 
-                    jump.call(this);
+                    jump();
                 }
             }
         );
 
 
-        /* =====================================================
-           CHUVA
-        ===================================================== */
+        /* CHUVA */
 
         rainParticles =
             this.add.particles(
@@ -1362,58 +1045,44 @@ class GameScene extends Phaser.Scene {
                 0,
                 "coin",
                 {
-                    lifespan: 700,
-
-                    speedY: {
-                        min: 400,
-                        max: 700
+                    lifespan:700,
+                    speedY:{
+                        min:400,
+                        max:700
                     },
-
-                    speedX: {
-                        min: -40,
-                        max: 40
+                    speedX:{
+                        min:-40,
+                        max:40
                     },
-
-                    scale: 0.12,
-
-                    quantity: 0,
-
-                    frequency: 80
+                    scale:0.12,
+                    quantity:0,
+                    frequency:80
                 }
             );
 
-
-        rainParticles.setScrollFactor(
-            0
-        );
-
-
-        /* Alterna chuva */
+        rainParticles.setScrollFactor(0);
 
         this.time.addEvent({
 
-            delay: 15000,
+            delay:15000,
 
-            loop: true,
+            loop:true,
 
-            callback: () => {
+            callback:()=>{
 
                 rain = !rain;
 
+                if(rain){
 
-                if (rain) {
-
-                    rainParticles.quantity =
-                        5;
+                    rainParticles.quantity = 5;
 
                     this.cameras.main.setBackgroundColor(
                         "#647b88"
                     );
 
-                } else {
+                }else{
 
-                    rainParticles.quantity =
-                        0;
+                    rainParticles.quantity = 0;
 
                     this.cameras.main.setBackgroundColor(
                         "#7bc8f6"
@@ -1424,72 +1093,57 @@ class GameScene extends Phaser.Scene {
     }
 
 
-    /* =========================================================
-       UPDATE
-    ========================================================= */
+    update(time,delta){
 
-    update(time, delta) {
-
-        if (gameOver)
+        if(gameOver)
             return;
 
 
-        /* Aumenta velocidade */
+        /* VELOCIDADE */
 
         gameSpeed +=
             delta * 0.004;
-
 
         tractor.setVelocityX(
             gameSpeed
         );
 
 
-        /* Distância */
+        /* DISTÂNCIA */
 
-        distance =
+        score =
             Math.floor(
                 tractor.x / 10
             );
 
-        score = distance;
 
+        if(score > highScore){
 
-        if (
-            score > highScore
-        ) {
-
-            highScore =
-                score;
+            highScore = score;
 
             saveData();
         }
 
 
         scoreText.setText(
-            "📏 " +
-            score +
-            " m"
+            "📏 " + score + " m"
         );
 
-
         coinsText.setText(
-            "💰 " +
-            coins
+            "💰 " + coins
         );
 
 
         let hearts = "";
 
-        for (
-            let i = 0;
-            i < lives;
+        for(
+            let i=0;
+            i<lives;
             i++
-        ) {
+        ){
 
             hearts += "❤️";
         }
-
 
         livesText.setText(
             hearts
@@ -1498,27 +1152,23 @@ class GameScene extends Phaser.Scene {
 
         speedText.setText(
             "🚜 Velocidade: " +
-            (
-                gameSpeed / 230
-            ).toFixed(1) +
+            (gameSpeed/230).toFixed(1) +
             "x"
         );
 
 
-        /* =====================================================
-           CHÃO INFINITO
-        ===================================================== */
+        /* CHÃO INFINITO */
 
-        if (
+        if(
             tractor.x >
             lastGroundX - 1800
-        ) {
+        ){
 
-            for (
-                let i = 0;
-                i < 5;
+            for(
+                let i=0;
+                i<5;
                 i++
-            ) {
+            ){
 
                 addGround(
                     this,
@@ -1528,33 +1178,39 @@ class GameScene extends Phaser.Scene {
         }
 
 
-        /* =====================================================
-           OBSTÁCULOS INFINITOS
-        ===================================================== */
+        /* OBSTÁCULOS INFINITOS */
 
-        if (
+        if(
             tractor.x >
             lastObstacleX - 1600
-        ) {
+        ){
 
             createObstacle(
                 this,
                 lastObstacleX +
                 Phaser.Math.Between(
-                    450,
-                    700
+                    500,
+                    750
                 )
             );
         }
 
 
-        /* =====================================================
-           CAIU DO MAPA
-        ===================================================== */
+        /* RESET DO PULO NO CHÃO */
 
-        if (
+        if(
+            tractor.body.blocked.down
+        ){
+
+            jumpsUsed = 0;
+        }
+
+
+        /* CAIU */
+
+        if(
             tractor.y > 650
-        ) {
+        ){
 
             loseLife.call(this);
         }
@@ -1566,10 +1222,7 @@ class GameScene extends Phaser.Scene {
    CHÃO
 ========================================================= */
 
-function addGround(
-    scene,
-    x
-) {
+function addGround(scene,x){
 
     let ground =
         groundPieces.create(
@@ -1578,15 +1231,9 @@ function addGround(
             "ground"
         );
 
-
-    ground.setOrigin(
-        0.5,
-        0.5
-    );
-
+    ground.setOrigin(0.5);
 
     ground.refreshBody();
-
 
     lastGroundX =
         x + 500;
@@ -1594,13 +1241,10 @@ function addGround(
 
 
 /* =========================================================
-   OBSTÁCULOS MENORES
+   OBSTÁCULOS
 ========================================================= */
 
-function createObstacle(
-    scene,
-    x
-) {
+function createObstacle(scene,x){
 
     let types = [
         "rock",
@@ -1608,74 +1252,76 @@ function createObstacle(
         "water"
     ];
 
-
     let type =
         Phaser.Utils.Array.GetRandom(
             types
         );
 
-
     let obstacle;
 
 
-    /* =====================================================
-       PEDRA
-    ===================================================== */
+    /* PEDRA */
 
-    if (
-        type === "rock"
-    ) {
-
-        obstacle =
-            obstacles.create(
-                x,
-                532,
-                "rock"
-            );
-
-
-        /*
-           Pedra bem menor.
-        */
-
-        obstacle.setScale(
-            Phaser.Math.FloatBetween(
-                0.40,
-                0.60
-            )
-        );
-    }
-
-
-    /* =====================================================
-       RAMPA
-    ===================================================== */
-
-    if (
-        type === "ramp"
-    ) {
+    if(type === "rock"){
 
         obstacle =
             obstacles.create(
                 x,
                 540,
+                "rock"
+            );
+
+        obstacle.setScale(0.45);
+
+        /*
+           HITBOX MUITO MENOR.
+
+           A pedra pode parecer um pouco maior,
+           mas a área que realmente faz o trator
+           bater fica pequena.
+        */
+
+        obstacle.body.setSize(
+            35,
+            25
+        );
+
+        obstacle.body.setOffset(
+            17,
+            40
+        );
+
+    }
+
+
+    /* RAMPA */
+
+    if(type === "ramp"){
+
+        obstacle =
+            obstacles.create(
+                x,
+                545,
                 "ramp"
             );
 
+        obstacle.setScale(0.60);
 
-        obstacle.setScale(
-            0.65
+        obstacle.body.setSize(
+            65,
+            22
+        );
+
+        obstacle.body.setOffset(
+            20,
+            38
         );
     }
 
 
-    /* =====================================================
-       ÁGUA
-    ===================================================== */
+    /* ÁGUA */
 
-    if (
-        type === "water"
-    ) {
+    if(type === "water"){
 
         obstacle =
             obstacles.create(
@@ -1684,24 +1330,29 @@ function createObstacle(
                 "water"
             );
 
+        obstacle.setScale(0.55);
 
-        obstacle.setScale(
-            0.60
+        /*
+           Só a parte de baixo da água
+           conta como obstáculo.
+        */
+
+        obstacle.body.setSize(
+            60,
+            15
+        );
+
+        obstacle.body.setOffset(
+            35,
+            25
         );
     }
 
 
-    /*
-       Atualiza a caixa física depois
-       de diminuir o objeto.
-    */
-
     obstacle.refreshBody();
 
 
-    /* =====================================================
-       MOEDAS
-    ===================================================== */
+    /* MOEDAS */
 
     let amount =
         Phaser.Math.Between(
@@ -1709,45 +1360,38 @@ function createObstacle(
             4
         );
 
-
-    for (
-        let i = 0;
-        i < amount;
+    for(
+        let i=0;
+        i<amount;
         i++
-    ) {
+    ){
 
         let coin =
             coinsGroup.create(
-                x +
-                i * 40,
-
-                430 -
+                x + i*40,
+                420 -
                 Math.abs(
-                    i - amount / 2
-                ) * 15,
-
+                    i - amount/2
+                )*15,
                 "coin"
             );
 
-
-        coin.body.allowGravity =
-            false;
+        coin.body.allowGravity = false;
     }
 
 
-    lastObstacleX =
-        x;
+    lastObstacleX = x;
 }
 
 
 /* =========================================================
-   PEGAR MOEDA
+   MOEDA
 ========================================================= */
 
 function collectCoin(
     tractor,
     coin
-) {
+){
 
     coin.destroy();
 
@@ -1762,32 +1406,28 @@ function collectCoin(
 
 
 /* =========================================================
-   PULO DUPLO
+   ⭐ PULO DUPLO ⭐
 ========================================================= */
 
-function jump() {
+function jump(){
 
-    if (gameOver)
+    if(gameOver)
         return;
 
 
     /*
-       PRIMEIRO PULO
-
-       Se estiver no chão,
-       começa o primeiro pulo.
+       PRIMEIRO TOQUE
+       ----------------
+       Faz o primeiro pulo.
     */
 
-    if (
-        tractor.body.blocked.down ||
-        tractor.body.touching.down
-    ) {
+    if(jumpsUsed === 0){
 
         tractor.setVelocityY(
-            -430
+            -470
         );
 
-        jumpCount = 1;
+        jumpsUsed = 1;
 
         sound("jump");
 
@@ -1796,24 +1436,31 @@ function jump() {
 
 
     /*
-       SEGUNDO PULO
-
-       Se já estiver no ar e ainda
-       tiver o segundo pulo disponível.
+       SEGUNDO TOQUE
+       ----------------
+       Funciona mesmo estando
+       completamente no ar.
     */
 
-    if (
-        jumpCount === 1
-    ) {
+    if(jumpsUsed === 1){
 
         tractor.setVelocityY(
-            -400
+            -440
         );
 
-        jumpCount = 2;
+        jumpsUsed = 2;
 
         sound("jump");
+
+        return;
     }
+
+
+    /*
+       Se jumpsUsed === 2,
+       não faz mais nenhum pulo
+       até tocar novamente no chão.
+    */
 }
 
 
@@ -1824,10 +1471,28 @@ function jump() {
 function hitObstacle(
     tractor,
     obstacle
-) {
+){
 
-    if (gameOver)
+    if(gameOver)
         return;
+
+
+    /*
+       PROTEÇÃO EXTRA:
+
+       Se o trator estiver claramente acima
+       do obstáculo, não perde vida.
+
+       Isso ajuda a evitar colisões injustas.
+    */
+
+    if(
+        tractor.body.bottom <
+        obstacle.body.top + 8
+    ){
+
+        return;
+    }
 
 
     loseLife.call(this);
@@ -1838,66 +1503,51 @@ function hitObstacle(
    PERDER VIDA
 ========================================================= */
 
-function loseLife() {
+function loseLife(){
 
-    if (gameOver)
+    if(gameOver)
         return;
-
 
     lives--;
 
-
     sound("hit");
-
 
     tractor.setTint(
         0xff5555
     );
 
-
     this.time.delayedCall(
         300,
-        () => {
-
-            if (tractor) {
-
+        ()=>{
+            if(tractor){
                 tractor.clearTint();
             }
         }
     );
 
 
-    if (
-        lives <= 0
-    ) {
+    if(lives <= 0){
 
         endGame.call(this);
 
-    } else {
-
-        /*
-           Coloca o trator um pouco
-           para frente depois da batida.
-        */
+    }else{
 
         tractor.setPosition(
-            tractor.x + 100,
+            tractor.x + 120,
             350
         );
-
 
         tractor.setVelocity(
             0,
             -250
         );
 
-
         /*
            Depois de perder uma vida,
-           o próximo pulo começa novamente.
+           pode fazer os dois pulos novamente.
         */
 
-        jumpCount = 0;
+        jumpsUsed = 0;
     }
 }
 
@@ -1906,19 +1556,16 @@ function loseLife() {
    GAME OVER
 ========================================================= */
 
-function endGame() {
+function endGame(){
 
     gameOver = true;
-
 
     tractor.setVelocity(
         0,
         0
     );
 
-
     saveData();
-
 
     let box =
         this.add.rectangle(
@@ -1930,9 +1577,7 @@ function endGame() {
             0.82
         );
 
-
     box.setScrollFactor(0);
-
 
     let title =
         this.add.text(
@@ -1940,42 +1585,34 @@ function endGame() {
             190,
             "💥 FIM DE JOGO",
             {
-                fontSize: "40px",
-                color: "#ff5555",
-                fontStyle: "bold"
+                fontSize:"40px",
+                color:"#ff5555",
+                fontStyle:"bold"
             }
         ).setOrigin(0.5);
 
-
     title.setScrollFactor(0);
-
 
     let stats =
         this.add.text(
             400,
             270,
-
             "Você percorreu " +
             score +
             " metros!\n\n" +
-
             "💰 Moedas: " +
             coins +
             "\n" +
-
             "🏆 Recorde: " +
             highScore,
-
             {
-                fontSize: "23px",
-                align: "center",
-                color: "#ffffff"
+                fontSize:"23px",
+                align:"center",
+                color:"#ffffff"
             }
         ).setOrigin(0.5);
 
-
     stats.setScrollFactor(0);
-
 
     let button =
         this.add.text(
@@ -1983,27 +1620,22 @@ function endGame() {
             405,
             "🏠 VOLTAR AO MENU",
             {
-                fontSize: "22px",
-                backgroundColor:
-                    "#249b45",
-                padding: 14,
-                color: "#ffffff"
+                fontSize:"22px",
+                backgroundColor:"#249b45",
+                padding:14,
+                color:"#ffffff"
             }
         ).setOrigin(0.5);
 
-
     button.setScrollFactor(0);
 
-
     button.setInteractive({
-        useHandCursor: true
+        useHandCursor:true
     });
-
 
     button.on(
         "pointerdown",
-        () => {
-
+        ()=>{
             this.scene.start(
                 "MenuScene"
             );
@@ -2018,44 +1650,39 @@ function endGame() {
 
 const config = {
 
-    type: Phaser.AUTO,
+    type:Phaser.AUTO,
 
-    width: 800,
+    width:800,
 
-    height: 600,
+    height:600,
 
-    backgroundColor:
-        "#7bc8f6",
+    backgroundColor:"#7bc8f6",
 
-    physics: {
+    physics:{
 
-        default: "arcade",
+        default:"arcade",
 
-        arcade: {
+        arcade:{
 
-            gravity: {
-                y: 1000
+            gravity:{
+                y:1000
             },
 
-            debug: false
+            debug:false
         }
     },
 
-    scale: {
+    scale:{
 
-        mode:
-            Phaser.Scale.FIT,
+        mode:Phaser.Scale.FIT,
 
         autoCenter:
             Phaser.Scale.CENTER_BOTH
     },
 
-    scene: [
-
+    scene:[
         MenuScene,
-
         ShopScene,
-
         GameScene
     ]
 };
@@ -2065,7 +1692,7 @@ const config = {
    INICIAR
 ========================================================= */
 
-window.onload = function() {
+window.onload = function(){
 
     new Phaser.Game(
         config
