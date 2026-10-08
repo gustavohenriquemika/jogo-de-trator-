@@ -4,121 +4,292 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jogo do Trator Infinito</title>
-    <!-- CDN alternativo mais rápido e estável para evitar lentidão no carregamento -->
     <script src="https://cloudflare.com"></script>
     <style>
-        body { margin: 0; background-color: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: sans-serif; }
-        canvas { box-shadow: 0px 10px 30px rgba(0,0,0,0.5); }
+        body {
+            margin: 0;
+            background-color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        canvas {
+            box-shadow: 0px 10px 30px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
-
 <script>
-const config = {
-    type: Phaser.AUTO,
-    width: 800,
-    height: 600,
-    backgroundColor: '#87CEEB', // Define a cor do céu direto na configuração para evitar tela preta inicial
-    physics: {
-        default: 'arcade',
-        arcade: { gravity: { y: 600 }, debug: false }
-    },
-    scene: { preload: preload, create: create, update: update }
+    let audioCtx = null;
+    
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    }
+    
+    function playSound(type) {
+        if (!audioCtx) return;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'jump') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+        } else if (type === 'coin') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+        } else if (type === 'gameover') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+        } else if (type === 'buy') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(660, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+        }
+    }
+
+    let totalCoins = 0;
+    let tractorTint = 0xffffff; 
+    let unlockedSkins = { green: true, red: false, blue: false };
+    let isGameOver = false;
+    let score = 0, coins = 0, currentSpeed = 220;
+    let startX = 200;
+    let nextObstacleX = 600;
+    let tractor, groundGroup, obstaclesGroup, coinsGroup, smokeParticles, scoreText, coinsText, levelText;
+
+    class MenuScene extends Phaser.Scene {
+        constructor() { super('MenuScene'); }
+        create() {
+            this.add.text(400, 150, 'JOGO DO TRATOR INFINITO', { fontSize: '42px', fill: '#fff', fontWeight: 'bold' }).setOrigin(0.5);
+            this.add.text(400, 220, `Suas Moedas: ${totalCoins} 🪙`, { fontSize: '24px', fill: '#ffd700' }).setOrigin(0.5);
+
+            let btnPlay = this.add.text(400, 320, '▶ JOGAR', { fontSize: '32px', fill: '#4caf50', backgroundColor: '#111', padding: 12 }).setOrigin(0.5).setInteractive();
+            btnPlay.on('pointerdown', () => {
+                initAudio();
+                this.scene.start('GameScene');
+            });
+            btnPlay.on('pointerover', () => btnPlay.setStyle({ fill: '#81c784' }));
+            btnPlay.on('pointerout', () => btnPlay.setStyle({ fill: '#4caf50' }));
+
+            this.add.text(400, 420, 'LOJA DE TRATORES (Custo: 10 Moedas cada)', { fontSize: '18px', fill: '#bbb' }).setOrigin(0.5);
+
+            let txtRed = unlockedSkins.red ? 'VERMELHO (Equipar)' : 'COMPRAR VERMELHO';
+            let btnRed = this.add.text(250, 480, txtRed, { fontSize: '16px', fill: '#fff', backgroundColor: '#e53935', padding: 8 }).setOrigin(0.5).setInteractive();
+            btnRed.on('pointerdown', () => {
+                initAudio();
+                this.handleSkinShop('red', 0xff5555);
+            });
+
+            let txtBlue = unlockedSkins.blue ? 'AZUL (Equipar)' : 'COMPRAR AZUL';
+            let btnBlue = this.add.text(550, 480, txtBlue, { fontSize: '16px', fill: '#fff', backgroundColor: '#1e88e5', padding: 8 }).setOrigin(0.5).setInteractive();
+            btnBlue.on('pointerdown', () => {
+                initAudio();
+                this.handleSkinShop('blue', 0x5555ff);
+            });
+            
+            if (tractorTint === 0xff5555) btnRed.setStyle({ stroke: '#fff', strokeThickness: 4 });
+            if (tractorTint === 0x5555ff) btnBlue.setStyle({ stroke: '#fff', strokeThickness: 4 });
+        }
+
+        handleSkinShop(skinKey, tintValue) {
+            if (unlockedSkins[skinKey]) {
+                tractorTint = tintValue;
+                playSound('buy');
+                this.scene.restart();
+            } else if (totalCoins >= 10) {
+                totalCoins -= 10;
+                unlockedSkins[skinKey] = true;
+                tractorTint = tintValue;
+                playSound('buy');
+                this.scene.restart();
+            }
+        }
+    }
+
+    class GameScene extends Phaser.Scene {
+        constructor() { super('GameScene'); }
+
+        create() {
+            isGameOver = false;
+            score = 0;
+            coins = 0;
+            currentSpeed = 220;
+            nextObstacleX = 600;
+
+            groundGroup = this.physics.add.staticGroup();
+            obstaclesGroup = this.physics.add.staticGroup();
+            coinsGroup = this.physics.add.group();
+
+            let groundGraphic = this.make.graphics({ x: 0, y: 0, add: false });
+            groundGraphic.fillStyle(0x795548, 1); groundGraphic.fillRect(0, 20, 800, 100);
+            groundGraphic.fillStyle(0x4caf50, 1); groundGraphic.fillRect(0, 0, 800, 20);
+            groundGraphic.generateTexture('ground_base', 800, 120);
+
+            let tractorTexture = this.make.graphics({ x: 0, y: 0, add: false });
+            tractorTexture.fillStyle(0x2e7d32, 1); tractorTexture.fillRect(0, 20, 60, 30);
+            tractorTexture.fillStyle(0x1565c0, 1); tractorTexture.fillRect(30, 0, 25, 20);
+            tractorTexture.fillStyle(0x111111, 1); tractorTexture.fillCircle(15, 45, 12); tractorTexture.fillCircle(45, 45, 12);
+            tractorTexture.generateTexture('tractor_base', 65, 60);
+
+            let rockGraphic = this.make.graphics({ x: 0, y: 0, add: false });
+            rockGraphic.fillStyle(0x757575, 1); rockGraphic.fillCircle(15, 15, 15);
+            rockGraphic.generateTexture('rock_base', 30, 30);
+
+            let rampGraphic = this.make.graphics({ x: 0, y: 0, add: false });
+            rampGraphic.fillStyle(0x8d6e63, 1); rampGraphic.fillTriangle(0, 40, 40, 0, 40, 40); rampGraphic.fillRect(40, 0, 40, 40);
+            rampGraphic.generateTexture('ramp_base', 80, 40);
+
+            let riverGraphic = this.make.graphics({ x: 0, y: 0, add: false });
+            riverGraphic.fillStyle(0x29b6f6, 1); riverGraphic.fillRect(0, 0, 50, 25);
+            riverGraphic.generateTexture('river_base', 50, 25);
+
+            let coinGraphic = this.make.graphics({ x: 0, y: 0, add: false });
+            coinGraphic.fillStyle(0xffd700, 1); coinGraphic.fillCircle(10, 10, 10);
+            coinGraphic.generateTexture('coin_base', 20, 20);
+
+            let particleGraphic = this.make.graphics({ x: 0, y: 0, add: false });
+            particleGraphic.fillStyle(0xdddddd, 0.6); particleGraphic.fillCircle(4, 4, 4);
+            particleGraphic.generateTexture('smoke_particle', 8, 8);
+
+            for (let i = 0; i < 4; i++) {
+                groundGroup.create(i * 800 + 400, 550, 'ground_base').refreshBody();
+            }
+
+            tractor = this.physics.add.sprite(startX, 300, 'tractor_base');
+            tractor.setBounce(0.02);
+            tractor.setTint(tractorTint);
+
+            smokeParticles = this.add.particles(0, 0, 'smoke_particle', {
+                speedX: { min: -40, max: -10 }, speedY: { min: -30, max: -10 },
+                scale: { start: 1, end: 2.5 }, alpha: { start: 0.6, end: 0 },
+                lifespan: 600, frequency: 40
+            });
+            smokeParticles.startFollow(tractor, -10, 30);
+
+            this.physics.add.collider(tractor, groundGroup);
+            this.physics.add.collider(tractor, obstaclesGroup, this.hitObstacle, null, this);
+            this.physics.add.overlap(tractor, coinsGroup, this.collectCoin, null, this);
+
+            this.input.keyboard.createCursorKeys();
+            this.cameras.main.startFollow(tractor, true, 0.05, 0.05, -200, 100);
+
+            scoreText = this.add.text(20, 20, 'Distância: 0m', { fontSize: '22px', fill: '#000', fontWeight: 'bold' }).setScrollFactor(0);
+            coinsText = this.add.text(20, 50, 'Moedas: 0 🪙', { fontSize: '22px', fill: '#d4af37', fontWeight: 'bold' }).setScrollFactor(0);
+            levelText = this.add.text(780, 20, 'Velocidade: 1x', { fontSize: '18px', fill: '#005500', fontWeight: 'bold' }).setOrigin(1, 0).setScrollFactor(0);
+        }
+
+        update() {
+            if (isGameOver) return;
+
+            let cursors = this.input.keyboard.createCursorKeys();
+            tractor.setVelocityX(currentSpeed);
+
+            if ((cursors.up.isDown || cursors.space.isDown) && tractor.body.touching.down) {
+tractor.setVelocityY(-370);
+playSound('jump');
+}
+score = Math.max(0, Math.floor((tractor.x - startX) / 10));
+scoreText.setText('Distância: ' + score + 'm');
+let speedMultiplier = 1 + Math.floor(score / 100) * 0.15;
+currentSpeed = 220 * speedMultiplier;
+levelText.setText('Velocidade: ' + speedMultiplier.toFixed(2) + 'x');
+if (tractor.body.touching.down) {
+smokeParticles.setActive(true);
+} else {
+smokeParticles.setActive(false);
+}
+if (tractor.x > nextObstacleX - 800) {
+groundGroup.create(nextObstacleX + 800, 550, 'ground_base').refreshBody();
+this.generateRandomObstacle(nextObstacleX);
+nextObstacleX += Phaser.Math.Between(500, 800);
+}
+if (tractor.y > 650) {
+this.triggerGameOver();
+}
+}
+generateRandomObstacle(x) {
+let type = Phaser.Math.Between(1, 3);
+if (type === 1) {
+obstaclesGroup.create(x, 475, 'rock_base').refreshBody();
+} else if (type === 2) {
+obstaclesGroup.create(x, 470, 'ramp_base').refreshBody();
+} else if (type === 3) {
+obstaclesGroup.create(x, 478, 'river_base').refreshBody();
+}
+let coinCount = Phaser.Math.Between(1, 3);
+for (let i = 0; i < coinCount; i++) {
+let coinY = type === 2 ? 380 : 430;
+let coin = coinsGroup.create(x + (i * 40) - 20, coinY, 'coin_base');
+coin.body.setAllowGravity(false);
+}
+}
+collectCoin(tractor, coin) {
+coin.disableBody(true, true);
+coins += 1;
+totalCoins += 1;
+coinsText.setText('Moedas: ' + coins + ' 🪙');
+playSound('coin');
+}
+hitObstacle(tractor, obstacle) {
+if (tractor.body.touching.right || obstacle.texture.key === 'river_base') {
+this.triggerGameOver();
+}
+}
+triggerGameOver() {
+if (isGameOver) return;
+isGameOver = true;
+tractor.setVelocity(0, 0);
+tractor.setTint(0x555555);
+smokeParticles.stop();
+playSound('gameover');
+let gameOverText = this.add.text(400, 200, 'FIM DE JOGO', { fontSize: '48px', fill: '#ff0000', fontWeight: 'bold' });
+gameOverText.setOrigin(0.5).setScrollFactor(0);
+let statsText = this.add.text(400, 270, Você correu ${score}m e pegou ${coins} moedas nesta partida!, { fontSize: '20px', fill: '#000', fontWeight: 'bold' });
+statsText.setOrigin(0.5).setScrollFactor(0);
+let menuText = this.add.text(400, 350, 'Pressione ESPAÇO ou SETA PARA CIMA para ir ao Menu', { fontSize: '18px', fill: '#333', fontWeight: 'bold' });
+menuText.setOrigin(0.5).setScrollFactor(0);
+const returnToMenu = () => { this.scene.start('MenuScene'); };
+this.input.keyboard.once('keydown-UP', returnToMenu);
+this.input.keyboard.once('keydown-SPACE', returnToMenu);
+}
+}
+const configGame = {
+type: Phaser.AUTO,
+width: 800,
+height: 600,
+backgroundColor: '#87CEEB',
+physics: {
+default: 'arcade',
+arcade: { gravity: { y: 750 }, debug: false }
+},
+scene: [MenuScene, GameScene]
 };
+const runGame = new Phaser.Game(configGame);
 
-const game = new Phaser.Game(config);
-let tractor, cursors, groundGroup, obstaclesGroup;
-let nextObstacleX = 600;
 
-function preload() {}
-
-function create() {
-    groundGroup = this.physics.add.staticGroup();
-    obstaclesGroup = this.physics.add.staticGroup();
-
-    // Criação segura das texturas base reutilizáveis (evita criar milhares de texturas dinâmicas)
-    // 1. Textura do Chão
-    let groundGraphic = this.make.graphics({ x: 0, y: 0, add: false });
-    groundGraphic.fillStyle(0x795548, 1); groundGraphic.fillRect(0, 20, 800, 100);
-    groundGraphic.fillStyle(0x4caf50, 1); groundGraphic.fillRect(0, 0, 800, 20);
-    groundGraphic.generateTexture('ground_base', 800, 120);
-
-    // 2. Textura do Trator
-    let tractorTexture = this.make.graphics({ x: 0, y: 0, add: false });
-    tractorTexture.fillStyle(0x2e7d32, 1); tractorTexture.fillRect(0, 20, 60, 30);
-    tractorTexture.fillStyle(0x1565c0, 1); tractorTexture.fillRect(30, 0, 25, 20);
-    tractorTexture.fillStyle(0x111111, 1); tractorTexture.fillCircle(15, 45, 12); tractorTexture.fillCircle(45, 45, 12);
-    tractorTexture.generateTexture('tractor_base', 65, 60);
-
-    // 3. Texturas dos Obstáculos
-    let rockGraphic = this.make.graphics({ x: 0, y: 0, add: false });
-    rockGraphic.fillStyle(0x757575, 1); rockGraphic.fillCircle(15, 15, 15);
-    rockGraphic.generateTexture('rock_base', 30, 30);
-
-    let rampGraphic = this.make.graphics({ x: 0, y: 0, add: false });
-    rampGraphic.fillStyle(0x8d6e63, 1); rampGraphic.fillTriangle(0, 40, 40, 0, 40, 40); rampGraphic.fillRect(40, 0, 40, 40);
-    rampGraphic.generateTexture('ramp_base', 80, 40);
-
-    let riverGraphic = this.make.graphics({ x: 0, y: 0, add: false });
-    riverGraphic.fillStyle(0x29b6f6, 1); riverGraphic.fillRect(0, 0, 50, 25);
-    riverGraphic.generateTexture('river_base', 50, 25);
-
-    // Inicializa os primeiros blocos de chão estáveis
-    for (let i = 0; i < 4; i++) {
-        groundGroup.create(i * 800 + 400, 550, 'ground_base').refreshBody();
-    }
-
-    // Instancia o trator
-    tractor = this.physics.add.sprite(200, 300, 'tractor_base');
-    tractor.setCollideWorldBounds(false);
-    tractor.setBounce(0.1);
-
-    // Configura colisores rápidos
-    this.physics.add.collider(tractor, groundGroup);
-    this.physics.add.collider(tractor, obstaclesGroup, hitObstacle, null, this);
-
-    cursors = this.input.keyboard.createCursorKeys();
-    this.cameras.main.startFollow(tractor, true, 0.05, 0.05, -200, 100);
-}
-
-function update() {
-    if (cursors.left.isDown) {
-        tractor.setVelocityX(-150);
-    } else if (cursors.right.isDown) {
-        tractor.setVelocityX(200);
-    } else {
-        tractor.setVelocityX(0);
-    }
-
-    if (cursors.up.isDown && tractor.body.touching.down) {
-        tractor.setVelocityY(-320);
-    }
-
-    // Geração infinita com base na posição X do trator (Garante performance leve)
-    if (tractor.x > nextObstacleX - 800) {
-        groundGroup.create(nextObstacleX + 800, 550, 'ground_base').refreshBody();
-        generateRandomObstacle(this, nextObstacleX);
-        nextObstacleX += Phaser.Math.Between(400, 700);
-    }
-}
-
-function generateRandomObstacle(scene, x) {
-    let type = Phaser.Math.Between(1, 3);
-    if (type === 1) {
-        obstaclesGroup.create(x, 475, 'rock_base').refreshBody();
-    } else if (type === 2) {
-        obstaclesGroup.create(x, 470, 'ramp_base').refreshBody();
-    } else if (type === 3) {
-        obstaclesGroup.create(x, 478, 'river_base').refreshBody();
-    }
-}
-
-function hitObstacle(tractor, obstacle) {
-    if(tractor.body.touching.right) {
-        tractor.setVelocityX(0);
-    }
-}
-</script>
-
-</body>
-</html>
