@@ -1,9 +1,11 @@
+html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jogo do Trator Infinito</title>
+    <!-- Framework Phaser 3 estável via CDN oficial -->
     <script src="https://cloudflare.com"></script>
     <style>
         body {
@@ -75,7 +77,7 @@
         }
     }
 
-    // --- Configurações e Variáveis Globais de Estado ---
+    // --- Variáveis Globais de Estado Permanente ---
     let totalCoins = 0;
     let tractorTint = 0xffffff; 
     let unlockedSkins = { green: true, red: false, blue: false };
@@ -91,6 +93,7 @@
     // --- CENA DO MENU INICIAL ---
     class MenuScene extends Phaser.Scene {
         constructor() { super('MenuScene'); }
+        
         create() {
             this.add.text(400, 150, 'JOGO DO TRATOR INFINITO', { fontSize: '42px', fill: '#fff', fontWeight: 'bold' }).setOrigin(0.5);
             this.add.text(400, 220, `Suas Moedas: ${totalCoins} 🪙`, { fontSize: '24px', fill: '#ffd700' }).setOrigin(0.5);
@@ -104,10 +107,9 @@
             btnPlay.on('pointerover', () => btnPlay.setStyle({ fill: '#81c784' }));
             btnPlay.on('pointerout', () => btnPlay.setStyle({ fill: '#4caf50' }));
 
-            // Área da Loja
+            // Interface da Loja
             this.add.text(400, 420, 'LOJA DE TRATORES (Custo: 10 Moedas cada)', { fontSize: '18px', fill: '#bbb' }).setOrigin(0.5);
 
-            // Opção Vermelha
             let txtRed = unlockedSkins.red ? 'VERMELHO (Equipar)' : 'COMPRAR VERMELHO';
             let btnRed = this.add.text(250, 480, txtRed, { fontSize: '16px', fill: '#fff', backgroundColor: '#e53935', padding: 8 }).setOrigin(0.5).setInteractive();
             btnRed.on('pointerdown', () => {
@@ -115,7 +117,6 @@
                 this.handleSkinShop('red', 0xff5555);
             });
 
-            // Opção Azul
             let txtBlue = unlockedSkins.blue ? 'AZUL (Equipar)' : 'COMPRAR AZUL';
             let btnBlue = this.add.text(550, 480, txtBlue, { fontSize: '16px', fill: '#fff', backgroundColor: '#1e88e5', padding: 8 }).setOrigin(0.5).setInteractive();
             btnBlue.on('pointerdown', () => {
@@ -146,8 +147,68 @@
     class GameScene extends Phaser.Scene {
         constructor() { super('GameScene'); }
 
+        preload() {
+            // Correção Absoluta: Gerando e injetando as artes diretamente no cache nativo com segurança (Evita tela preta)
+            
+            // 1. Chão
+            if (!this.textures.exists('ground_base')) {
+                let canvas = this.textures.createCanvas('ground_base', 800, 120);
+                let ctx = canvas.context;
+                ctx.fillStyle = '#795548'; ctx.fillRect(0, 20, 800, 100);
+                ctx.fillStyle = '#4caf50'; ctx.fillRect(0, 0, 800, 20);
+                canvas.refresh();
+            }
+            // 2. Trator Base
+            if (!this.textures.exists('tractor_base')) {
+                let canvas = this.textures.createCanvas('tractor_base', 65, 60);
+                let ctx = canvas.context;
+                ctx.fillStyle = '#2e7d32'; ctx.fillRect(0, 20, 60, 30);
+                ctx.fillStyle = '#1565c0'; ctx.fillRect(30, 0, 25, 20);
+                ctx.fillStyle = '#111111';
+                ctx.beginPath(); ctx.arc(15, 45, 12, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(45, 45, 12, 0, Math.PI * 2); ctx.fill();
+                canvas.refresh();
+            }
+            // 3. Pedra
+            if (!this.textures.exists('rock_base')) {
+                let canvas = this.textures.createCanvas('rock_base', 30, 30);
+                let ctx = canvas.context;
+                ctx.fillStyle = '#757575'; ctx.beginPath(); ctx.arc(15, 15, 15, 0, Math.PI * 2); ctx.fill();
+                canvas.refresh();
+            }
+            // 4. Rampa
+            if (!this.textures.exists('ramp_base')) {
+                let canvas = this.textures.createCanvas('ramp_base', 80, 40);
+                let ctx = canvas.context;
+                ctx.fillStyle = '#8d6e63';
+                ctx.beginPath(); ctx.moveTo(0, 40); ctx.lineTo(40, 0); ctx.lineTo(40, 40); ctx.fill();
+                ctx.fillRect(40, 0, 40, 40);
+                canvas.refresh();
+            }
+            // 5. Rio
+            if (!this.textures.exists('river_base')) {
+                let canvas = this.textures.createCanvas('river_base', 50, 25);
+                let ctx = canvas.context;
+                ctx.fillStyle = '#29b6f6'; ctx.fillRect(0, 0, 50, 25);
+                canvas.refresh();
+            }
+            // 6. Moeda
+            if (!this.textures.exists('coin_base')) {
+                let canvas = this.textures.createCanvas('coin_base', 20, 20);
+                let ctx = canvas.context;
+                ctx.fillStyle = '#ffd700'; ctx.beginPath(); ctx.arc(10, 10, 10, 0, Math.PI * 2); ctx.fill();
+                canvas.refresh();
+            }
+            // 7. Partícula
+            if (!this.textures.exists('smoke_particle')) {
+                let canvas = this.textures.createCanvas('smoke_particle', 8, 8);
+                let ctx = canvas.context;
+                ctx.fillStyle = 'rgba(220, 220, 220, 0.6)'; ctx.beginPath(); ctx.arc(4, 4, 4, 0, Math.PI * 2); ctx.fill();
+                canvas.refresh();
+            }
+        }
+
         create() {
-            // Reinicialização de parâmetros da partida
             isGameOver = false;
             score = 0;
             coins = 0;
@@ -158,65 +219,30 @@
             obstaclesGroup = this.physics.add.staticGroup();
             coinsGroup = this.physics.add.group();
 
-            // Geração das formas gráficas automáticas em memória
-            let groundGraphic = this.make.graphics({ x: 0, y: 0, add: false });
-            groundGraphic.fillStyle(0x795548, 1); groundGraphic.fillRect(0, 20, 800, 100);
-            groundGraphic.fillStyle(0x4caf50, 1); groundGraphic.fillRect(0, 0, 800, 20);
-            groundGraphic.generateTexture('ground_base', 800, 120);
-
-            let tractorTexture = this.make.graphics({ x: 0, y: 0, add: false });
-            tractorTexture.fillStyle(0x2e7d32, 1); tractorTexture.fillRect(0, 20, 60, 30);
-            tractorTexture.fillStyle(0x1565c0, 1); tractorTexture.fillRect(30, 0, 25, 20);
-            tractorTexture.fillStyle(0x111111, 1); tractorTexture.fillCircle(15, 45, 12); tractorTexture.fillCircle(45, 45, 12);
-            tractorTexture.generateTexture('tractor_base', 65, 60);
-
-            let rockGraphic = this.make.graphics({ x: 0, y: 0, add: false });
-            rockGraphic.fillStyle(0x757575, 1); rockGraphic.fillCircle(15, 15, 15);
-            rockGraphic.generateTexture('rock_base', 30, 30);
-
-            let rampGraphic = this.make.graphics({ x: 0, y: 0, add: false });
-            rampGraphic.fillStyle(0x8d6e63, 1); rampGraphic.fillTriangle(0, 40, 40, 0, 40, 40); rampGraphic.fillRect(40, 0, 40, 40);
-            rampGraphic.generateTexture('ramp_base', 80, 40);
-
-            let riverGraphic = this.make.graphics({ x: 0, y: 0, add: false });
-            riverGraphic.fillStyle(0x29b6f6, 1); riverGraphic.fillRect(0, 0, 50, 25);
-            riverGraphic.generateTexture('river_base', 50, 25);
-
-            let coinGraphic = this.make.graphics({ x: 0, y: 0, add: false });
-            coinGraphic.fillStyle(0xffd700, 1); coinGraphic.fillCircle(10, 10, 10);
-            coinGraphic.generateTexture('coin_base', 20, 20);
-
-            let particleGraphic = this.make.graphics({ x: 0, y: 0, add: false });
-            particleGraphic.fillStyle(0xdddddd, 0.6); particleGraphic.fillCircle(4, 4, 4);
-            particleGraphic.generateTexture('smoke_particle', 8, 8);
-
-            // Montagem do cenário base estável
+            // Monta terreno inicial estável
             for (let i = 0; i < 4; i++) {
                 groundGroup.create(i * 800 + 400, 550, 'ground_base').refreshBody();
             }
 
-            // Ativação do veículo principal
+            // Ativa o Trator
             tractor = this.physics.add.sprite(startX, 300, 'tractor_base');
             tractor.setBounce(0.02);
             tractor.setTint(tractorTint);
 
-            // Sistema visual de partículas na roda do trator
-            smokeParticles = this.add.particles(0, 0, 'smoke_particle', {
-                speedX: { min: -40, max: -10 }, speedY: { min: -30, max: -10 },
-                scale: { start: 1, end: 2.5 }, alpha: { start: 0.6, end: 0 },
-                lifespan: 600, frequency: 40
-            });
-            smokeParticles.startFollow(tractor, -10, 30);
-
-            // Mecânicas de colisão física internas da cena
-            this.physics.add.collider(tractor, groundGroup);
-            this.physics.add.collider(tractor, obstaclesGroup, this.hitObstacle, null, this);
-            this.physics.add.overlap(tractor, coinsGroup, this.collectCoin, null, this);
-
-            this.cameras.main.startFollow(tractor, true, 0.05, 0.05, -200, 100);
-
-            // Textos fixos de interface (HUD)
 Use o código com cuidado.
+// Efeito visual de Poeira/Fumaça
+smokeParticles = this.add.particles(0, 0, 'smoke_particle', {
+speedX: { min: -40, max: -10 }, speedY: { min: -30, max: -10 },
+scale: { start: 1, end: 2.5 }, alpha: { start: 0.6, end: 0 },
+lifespan: 600, frequency: 40
+});
+smokeParticles.startFollow(tractor, -10, 30);
+// Configurando os colisores estáveis
+this.physics.add.collider(tractor, groundGroup);
+this.physics.add.collider(tractor, obstaclesGroup, (t, o) => { this.hitObstacle(t, o); });
+this.physics.add.overlap(tractor, coinsGroup, (t, c) => { this.collectCoin(t, c); });
+this.cameras.main.startFollow(tractor, true, 0.05, 0.05, -200, 100);
+// Textos fixos de interface (HUD)
 scoreText = this.add.text(20, 20, 'Distância: 0m', { fontSize: '22px', fill: '#000', fontWeight: 'bold' }).setScrollFactor(0);
 coinsText = this.add.text(20, 50, 'Moedas: 0 🪙', { fontSize: '22px', fill: '#d4af37', fontWeight: 'bold' }).setScrollFactor(0);
 levelText = this.add.text(780, 20, 'Velocidade: 1x', { fontSize: '18px', fill: '#005500', fontWeight: 'bold' }).setOrigin(1, 0).setScrollFactor(0);
@@ -225,26 +251,31 @@ update() {
 if (isGameOver) return;
 let cursors = this.input.keyboard.createCursorKeys();
 tractor.setVelocityX(currentSpeed);
+// Pulo
 if ((cursors.up.isDown || cursors.space.isDown) && tractor.body.touching.down) {
 tractor.setVelocityY(-370);
 playSound('jump');
 }
+// Marcador de Metros
 score = Math.max(0, Math.floor((tractor.x - startX) / 10));
 scoreText.setText('Distância: ' + score + 'm');
+// Multiplicador progressivo de velocidade
 let speedMultiplier = 1 + Math.floor(score / 100) * 0.15;
 currentSpeed = 220 * speedMultiplier;
 levelText.setText('Velocidade: ' + speedMultiplier.toFixed(2) + 'x');
+// Ativa fumaça apenas se estiver tocando o solo
 if (tractor.body.touching.down) {
 smokeParticles.setActive(true);
 } else {
 smokeParticles.setActive(false);
 }
-// Geração contínua e infinita do asfalto à frente
+// Geração infinita de blocos de mapa à frente
 if (tractor.x > nextObstacleX - 800) {
 groundGroup.create(nextObstacleX + 800, 550, 'ground_base').refreshBody();
 this.generateRandomObstacle(nextObstacleX);
 nextObstacleX += Phaser.Math.Between(500, 800);
 }
+// Game over por queda
 if (tractor.y > 650) {
 this.triggerGameOver();
 }
@@ -307,9 +338,3 @@ arcade: { gravity: { y: 750 }, debug: false }
 scene: [MenuScene, GameScene]
 };
 const runGame = new Phaser.Game(configGame);
-
-
-
-<FollowUp>
-Após salvar e atualizar seu arquivo no GitHub, limpe o cache do seu navegador pressionando **Ctrl + F5** na página do jogo. Me avise se o **Menu Inicial com o botão verde JOGAR** apareceu corretamente agora!
-</FollowUp>
