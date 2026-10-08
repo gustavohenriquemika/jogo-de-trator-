@@ -3,25 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Jogo do Trator Infinito</title>
 
-    <!-- Phaser 3 -->
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+    <!-- Phaser -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 
     <style>
-        body {
+        html, body {
             margin: 0;
-            background-color: #222;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: #222;
+            overflow: hidden;
+        }
+
+        body {
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            overflow: hidden;
-            font-family: sans-serif;
         }
 
         canvas {
-            box-shadow: 0px 10px 30px rgba(0,0,0,0.5);
+            max-width: 100%;
+            max-height: 100%;
         }
     </style>
 </head>
@@ -29,1255 +35,885 @@
 <body>
 
 <script>
-    // =========================================================
-    // ÁUDIO
-    // =========================================================
 
-    let audioCtx = null;
+console.log("Iniciando jogo...");
 
-    function initAudio() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
 
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
-    }
+// =====================================================
+// VARIÁVEIS
+// =====================================================
 
-    function playSound(type) {
-        if (!audioCtx) return;
+let totalCoins = 0;
 
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
+let tractorColor = 0x2e7d32;
 
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
+let unlocked = {
+    green: true,
+    red: false,
+    blue: false
+};
 
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
+let score = 0;
+let coins = 0;
+let speed = 220;
 
-        if (type === 'jump') {
-            osc.type = 'triangle';
+let tractor;
+let ground;
+let obstacles;
+let coinGroup;
 
-            osc.frequency.setValueAtTime(
-                150,
-                audioCtx.currentTime
-            );
+let scoreText;
+let coinsText;
+let speedText;
 
-            osc.frequency.exponentialRampToValueAtTime(
-                400,
-                audioCtx.currentTime + 0.15
-            );
+let gameOver = false;
 
-            gain.gain.setValueAtTime(
-                0.3,
-                audioCtx.currentTime
-            );
 
-            gain.gain.linearRampToValueAtTime(
-                0,
-                audioCtx.currentTime + 0.15
-            );
+// =====================================================
+// FUNÇÃO PARA CRIAR TEXTURAS
+// =====================================================
 
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.15);
-        }
+function createTextures(scene) {
 
-        else if (type === 'coin') {
-            osc.type = 'sine';
+    // TRATOR
+    if (!scene.textures.exists("tractor")) {
 
-            osc.frequency.setValueAtTime(
-                587.33,
-                audioCtx.currentTime
-            );
+        let g = scene.make.graphics({
+            x: 0,
+            y: 0,
+            add: false
+        });
 
-            osc.frequency.setValueAtTime(
-                880,
-                audioCtx.currentTime + 0.08
-            );
+        g.fillStyle(0x2e7d32);
+        g.fillRect(5, 25, 60, 25);
 
-            gain.gain.setValueAtTime(
-                0.2,
-                audioCtx.currentTime
-            );
+        g.fillStyle(0x1565c0);
+        g.fillRect(35, 5, 25, 25);
 
-            gain.gain.linearRampToValueAtTime(
-                0,
-                audioCtx.currentTime + 0.2
-            );
+        g.fillStyle(0x111111);
 
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.2);
-        }
+        g.fillCircle(18, 50, 12);
+        g.fillCircle(52, 50, 12);
 
-        else if (type === 'gameover') {
-            osc.type = 'sawtooth';
+        g.generateTexture("tractor", 70, 65);
 
-            osc.frequency.setValueAtTime(
-                300,
-                audioCtx.currentTime
-            );
-
-            osc.frequency.linearRampToValueAtTime(
-                80,
-                audioCtx.currentTime + 0.4
-            );
-
-            gain.gain.setValueAtTime(
-                0.4,
-                audioCtx.currentTime
-            );
-
-            gain.gain.linearRampToValueAtTime(
-                0,
-                audioCtx.currentTime + 0.4
-            );
-
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.4);
-        }
-
-        else if (type === 'buy') {
-            osc.type = 'sine';
-
-            osc.frequency.setValueAtTime(
-                440,
-                audioCtx.currentTime
-            );
-
-            osc.frequency.exponentialRampToValueAtTime(
-                660,
-                audioCtx.currentTime + 0.1
-            );
-
-            gain.gain.setValueAtTime(
-                0.3,
-                audioCtx.currentTime
-            );
-
-            gain.gain.linearRampToValueAtTime(
-                0,
-                audioCtx.currentTime + 0.15
-            );
-
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.15);
-        }
+        g.destroy();
     }
 
 
-    // =========================================================
-    // VARIÁVEIS GLOBAIS
-    // =========================================================
+    // CHÃO
+    if (!scene.textures.exists("ground")) {
 
-    let totalCoins = 0;
+        let g = scene.make.graphics({
+            x: 0,
+            y: 0,
+            add: false
+        });
 
-    let tractorTint = 0xffffff;
+        g.fillStyle(0x4caf50);
+        g.fillRect(0, 0, 800, 20);
 
-    let unlockedSkins = {
-        green: true,
-        red: false,
-        blue: false
-    };
+        g.fillStyle(0x795548);
+        g.fillRect(0, 20, 800, 100);
 
-    let isGameOver = false;
+        g.generateTexture("ground", 800, 120);
 
-    let score = 0;
-    let coins = 0;
-
-    let currentSpeed = 220;
-
-    let startX = 200;
-    let nextObstacleX = 600;
-
-    let tractor;
-    let groundGroup;
-    let obstaclesGroup;
-    let coinsGroup;
-    let smokeParticles;
-
-    let scoreText;
-    let coinsText;
-    let levelText;
+        g.destroy();
+    }
 
 
-    // =========================================================
-    // MENU
-    // =========================================================
+    // PEDRA
+    if (!scene.textures.exists("rock")) {
 
-    class MenuScene extends Phaser.Scene {
+        let g = scene.make.graphics({
+            x: 0,
+            y: 0,
+            add: false
+        });
 
-        constructor() {
-            super('MenuScene');
+        g.fillStyle(0x777777);
+        g.fillCircle(18, 18, 18);
+
+        g.generateTexture("rock", 36, 36);
+
+        g.destroy();
+    }
+
+
+    // RAMPA
+    if (!scene.textures.exists("ramp")) {
+
+        let g = scene.make.graphics({
+            x: 0,
+            y: 0,
+            add: false
+        });
+
+        g.fillStyle(0x8d6e63);
+
+        g.beginPath();
+        g.moveTo(0, 45);
+        g.lineTo(45, 0);
+        g.lineTo(45, 45);
+        g.closePath();
+        g.fillPath();
+
+        g.generateTexture("ramp", 60, 45);
+
+        g.destroy();
+    }
+
+
+    // ÁGUA
+    if (!scene.textures.exists("water")) {
+
+        let g = scene.make.graphics({
+            x: 0,
+            y: 0,
+            add: false
+        });
+
+        g.fillStyle(0x29b6f6);
+        g.fillRect(0, 0, 70, 30);
+
+        g.generateTexture("water", 70, 30);
+
+        g.destroy();
+    }
+
+
+    // MOEDA
+    if (!scene.textures.exists("coin")) {
+
+        let g = scene.make.graphics({
+            x: 0,
+            y: 0,
+            add: false
+        });
+
+        g.fillStyle(0xffd700);
+        g.fillCircle(12, 12, 12);
+
+        g.lineStyle(2, 0xffa000);
+        g.strokeCircle(12, 12, 10);
+
+        g.generateTexture("coin", 24, 24);
+
+        g.destroy();
+    }
+}
+
+
+// =====================================================
+// MENU
+// =====================================================
+
+class MenuScene extends Phaser.Scene {
+
+    constructor() {
+        super("Menu");
+    }
+
+
+    create() {
+
+        this.cameras.main.setBackgroundColor("#87CEEB");
+
+
+        this.add.text(
+            400,
+            100,
+            "🚜 JOGO DO TRATOR",
+            {
+                fontSize: "42px",
+                color: "#ffffff",
+                fontStyle: "bold"
+            }
+        ).setOrigin(0.5);
+
+
+        this.add.text(
+            400,
+            160,
+            "INFINITO",
+            {
+                fontSize: "30px",
+                color: "#ffff00",
+                fontStyle: "bold"
+            }
+        ).setOrigin(0.5);
+
+
+        this.add.text(
+            400,
+            220,
+            "Moedas: " + totalCoins + " 🪙",
+            {
+                fontSize: "24px",
+                color: "#ffd700"
+            }
+        ).setOrigin(0.5);
+
+
+        // JOGAR
+
+        let play = this.add.text(
+            400,
+            300,
+            "▶ JOGAR",
+            {
+                fontSize: "32px",
+                color: "#ffffff",
+                backgroundColor: "#2e7d32",
+                padding: {
+                    left: 25,
+                    right: 25,
+                    top: 12,
+                    bottom: 12
+                }
+            }
+        )
+        .setOrigin(0.5)
+        .setInteractive();
+
+
+        play.on("pointerdown", () => {
+
+            this.scene.start("Game");
+
+        });
+
+
+        // LOJA
+
+        this.add.text(
+            400,
+            390,
+            "LOJA — 10 moedas",
+            {
+                fontSize: "22px",
+                color: "#ffffff"
+            }
+        ).setOrigin(0.5);
+
+
+        let red = this.add.text(
+            250,
+            450,
+            unlocked.red ? "🔴 VERMELHO" : "COMPRAR 🔴",
+            {
+                fontSize: "18px",
+                color: "#ffffff",
+                backgroundColor: "#d32f2f",
+                padding: 10
+            }
+        )
+        .setOrigin(0.5)
+        .setInteractive();
+
+
+        red.on("pointerdown", () => {
+
+            if (!unlocked.red) {
+
+                if (totalCoins >= 10) {
+
+                    totalCoins -= 10;
+                    unlocked.red = true;
+
+                } else {
+
+                    return;
+
+                }
+
+            }
+
+            tractorColor = 0xff4444;
+
+            this.scene.restart();
+
+        });
+
+
+        let blue = this.add.text(
+            550,
+            450,
+            unlocked.blue ? "🔵 AZUL" : "COMPRAR 🔵",
+            {
+                fontSize: "18px",
+                color: "#ffffff",
+                backgroundColor: "#1976d2",
+                padding: 10
+            }
+        )
+        .setOrigin(0.5)
+        .setInteractive();
+
+
+        blue.on("pointerdown", () => {
+
+            if (!unlocked.blue) {
+
+                if (totalCoins >= 10) {
+
+                    totalCoins -= 10;
+                    unlocked.blue = true;
+
+                } else {
+
+                    return;
+
+                }
+
+            }
+
+            tractorColor = 0x4444ff;
+
+            this.scene.restart();
+
+        });
+
+
+        this.add.text(
+            400,
+            540,
+            "Use ↑ ou ESPAÇO para pular",
+            {
+                fontSize: "18px",
+                color: "#ffffff"
+            }
+        ).setOrigin(0.5);
+
+    }
+
+}
+
+
+// =====================================================
+// JOGO
+// =====================================================
+
+class GameScene extends Phaser.Scene {
+
+    constructor() {
+        super("Game");
+    }
+
+
+    create() {
+
+        createTextures(this);
+
+        gameOver = false;
+
+        score = 0;
+        coins = 0;
+        speed = 220;
+
+
+        // FUNDO
+
+        this.cameras.main.setBackgroundColor("#87CEEB");
+
+
+        // CHÃO
+
+        ground =
+            this.physics.add.staticGroup();
+
+
+        for (let x = 400; x < 8000; x += 800) {
+
+            ground
+                .create(x, 550, "ground")
+                .refreshBody();
+
         }
 
-        create() {
 
+        // TRATOR
+
+        tractor =
+            this.physics.add.sprite(
+                200,
+                400,
+                "tractor"
+            );
+
+
+        tractor.setTint(tractorColor);
+
+        tractor.setCollideWorldBounds(false);
+
+
+        // OBSTÁCULOS
+
+        obstacles =
+            this.physics.add.staticGroup();
+
+
+        // MOEDAS
+
+        coinGroup =
+            this.physics.add.group();
+
+
+        // COLISÃO CHÃO
+
+        this.physics.add.collider(
+            tractor,
+            ground
+        );
+
+
+        // COLISÃO OBSTÁCULOS
+
+        this.physics.add.collider(
+            tractor,
+            obstacles,
+            () => {
+
+                endGame();
+
+            }
+        );
+
+
+        // MOEDAS
+
+        this.physics.add.overlap(
+            tractor,
+            coinGroup,
+            collectCoin,
+            null,
+            this
+        );
+
+
+        // CÂMERA
+
+        this.cameras.main.startFollow(
+            tractor,
+            true,
+            0.08,
+            0.08,
+            -200,
+            100
+        );
+
+
+        // HUD
+
+        scoreText =
             this.add.text(
-                400,
-                150,
-                'JOGO DO TRATOR INFINITO',
+                20,
+                20,
+                "Distância: 0m",
                 {
-                    fontSize: '42px',
-                    fill: '#fff',
-                    fontWeight: 'bold'
-                }
-            ).setOrigin(0.5);
-
-
-            this.add.text(
-                400,
-                220,
-                `Suas Moedas: ${totalCoins} 🪙`,
-                {
-                    fontSize: '24px',
-                    fill: '#ffd700'
-                }
-            ).setOrigin(0.5);
-
-
-            // BOTÃO JOGAR
-
-            let btnPlay = this.add.text(
-                400,
-                320,
-                '▶ JOGAR',
-                {
-                    fontSize: '32px',
-                    fill: '#4caf50',
-                    backgroundColor: '#111',
-                    padding: 12
+                    fontSize: "22px",
+                    color: "#000000",
+                    fontStyle: "bold"
                 }
             )
-            .setOrigin(0.5)
-            .setInteractive();
+            .setScrollFactor(0);
 
 
-            btnPlay.on('pointerdown', () => {
-
-                initAudio();
-
-                this.scene.start('GameScene');
-
-            });
-
-
-            btnPlay.on('pointerover', () => {
-
-                btnPlay.setStyle({
-                    fill: '#81c784'
-                });
-
-            });
-
-
-            btnPlay.on('pointerout', () => {
-
-                btnPlay.setStyle({
-                    fill: '#4caf50'
-                });
-
-            });
-
-
-            // LOJA
-
+        coinsText =
             this.add.text(
-                400,
+                20,
+                50,
+                "Moedas: 0 🪙",
+                {
+                    fontSize: "22px",
+                    color: "#8b6508",
+                    fontStyle: "bold"
+                }
+            )
+            .setScrollFactor(0);
+
+
+        speedText =
+            this.add.text(
+                780,
+                20,
+                "Velocidade: 1x",
+                {
+                    fontSize: "20px",
+                    color: "#005500",
+                    fontStyle: "bold"
+                }
+            )
+            .setOrigin(1, 0)
+            .setScrollFactor(0);
+
+
+        // PRIMEIROS OBSTÁCULOS
+
+        createObstacle(this, 700);
+        createObstacle(this, 1100);
+        createObstacle(this, 1550);
+        createObstacle(this, 2050);
+
+
+        // CONTROLES
+
+        this.input.keyboard.on(
+            "keydown-UP",
+            jump,
+            this
+        );
+
+
+        this.input.keyboard.on(
+            "keydown-SPACE",
+            jump,
+            this
+        );
+
+    }
+
+
+    update() {
+
+        if (gameOver) {
+            return;
+        }
+
+
+        // VELOCIDADE
+
+        tractor.setVelocityX(speed);
+
+
+        // DISTÂNCIA
+
+        score =
+            Math.floor(
+                (tractor.x - 200) / 10
+            );
+
+
+        scoreText.setText(
+            "Distância: " +
+            score +
+            "m"
+        );
+
+
+        coinsText.setText(
+            "Moedas: " +
+            coins +
+            " 🪙"
+        );
+
+
+        // AUMENTA VELOCIDADE
+
+        let multiplier =
+            1 +
+            Math.floor(score / 100) *
+            0.15;
+
+
+        speed =
+            220 * multiplier;
+
+
+        speedText.setText(
+            "Velocidade: " +
+            multiplier.toFixed(2) +
+            "x"
+        );
+
+
+        // GERA NOVOS OBSTÁCULOS
+
+        if (
+            tractor.x >
+            lastObstacleX - 500
+        ) {
+
+            createObstacle(
+                this,
+                lastObstacleX + Phaser.Math.Between(450, 700)
+            );
+
+        }
+
+
+        // QUEDA
+
+        if (tractor.y > 700) {
+
+            endGame();
+
+        }
+
+    }
+
+}
+
+
+// =====================================================
+// FUNÇÕES DO JOGO
+// =====================================================
+
+let lastObstacleX = 2050;
+
+
+function createObstacle(scene, x) {
+
+    let type =
+        Phaser.Math.Between(1, 3);
+
+
+    let obstacle;
+
+
+    if (type === 1) {
+
+        obstacle =
+            scene.physics.add.staticImage(
+                x,
+                500,
+                "rock"
+            );
+
+    }
+
+    else if (type === 2) {
+
+        obstacle =
+            scene.physics.add.staticImage(
+                x,
+                500,
+                "ramp"
+            );
+
+    }
+
+    else {
+
+        obstacle =
+            scene.physics.add.staticImage(
+                x,
+                510,
+                "water"
+            );
+
+    }
+
+
+    obstacles.add(obstacle);
+
+
+    // MOEDAS
+
+    let amount =
+        Phaser.Math.Between(1, 3);
+
+
+    for (
+        let i = 0;
+        i < amount;
+        i++
+    ) {
+
+        let coin =
+            coinGroup.create(
+                x + i * 35 - 35,
                 420,
-                'LOJA DE TRATORES (Custo: 10 Moedas cada)',
-                {
-                    fontSize: '18px',
-                    fill: '#bbb'
-                }
-            ).setOrigin(0.5);
+                "coin"
+            );
 
 
-            // VERMELHO
-
-            let txtRed = unlockedSkins.red
-                ? 'VERMELHO (Equipar)'
-                : 'COMPRAR VERMELHO';
-
-
-            let btnRed = this.add.text(
-                250,
-                480,
-                txtRed,
-                {
-                    fontSize: '16px',
-                    fill: '#fff',
-                    backgroundColor: '#e53935',
-                    padding: 8
-                }
-            )
-            .setOrigin(0.5)
-            .setInteractive();
-
-
-            btnRed.on('pointerdown', () => {
-
-                initAudio();
-
-                this.handleSkinShop(
-                    'red',
-                    0xff5555
-                );
-
-            });
-
-
-            // AZUL
-
-            let txtBlue = unlockedSkins.blue
-                ? 'AZUL (Equipar)'
-                : 'COMPRAR AZUL';
-
-
-            let btnBlue = this.add.text(
-                550,
-                480,
-                txtBlue,
-                {
-                    fontSize: '16px',
-                    fill: '#fff',
-                    backgroundColor: '#1e88e5',
-                    padding: 8
-                }
-            )
-            .setOrigin(0.5)
-            .setInteractive();
-
-
-            btnBlue.on('pointerdown', () => {
-
-                initAudio();
-
-                this.handleSkinShop(
-                    'blue',
-                    0x5555ff
-                );
-
-            });
-
-
-            if (tractorTint === 0xff5555) {
-
-                btnRed.setStyle({
-                    stroke: '#fff',
-                    strokeThickness: 4
-                });
-
-            }
-
-
-            if (tractorTint === 0x5555ff) {
-
-                btnBlue.setStyle({
-                    stroke: '#fff',
-                    strokeThickness: 4
-                });
-
-            }
-
-        }
-
-
-        handleSkinShop(skinKey, tintValue) {
-
-            if (unlockedSkins[skinKey]) {
-
-                tractorTint = tintValue;
-
-                playSound('buy');
-
-                this.scene.restart();
-
-            }
-
-            else if (totalCoins >= 10) {
-
-                totalCoins -= 10;
-
-                unlockedSkins[skinKey] = true;
-
-                tractorTint = tintValue;
-
-                playSound('buy');
-
-                this.scene.restart();
-
-            }
-
-        }
+        coin.body.setAllowGravity(false);
 
     }
 
 
-    // =========================================================
-    // JOGO
-    // =========================================================
+    lastObstacleX = x;
 
-    class GameScene extends Phaser.Scene {
+}
 
-        constructor() {
-            super('GameScene');
-        }
 
+// =====================================================
+// PULO
+// =====================================================
 
-        preload() {
+function jump() {
 
-            // CHÃO
-
-            if (!this.textures.exists('ground_base')) {
-
-                let canvas =
-                    this.textures.createCanvas(
-                        'ground_base',
-                        800,
-                        120
-                    );
-
-                let ctx = canvas.context;
-
-                ctx.fillStyle = '#795548';
-
-                ctx.fillRect(
-                    0,
-                    20,
-                    800,
-                    100
-                );
-
-
-                ctx.fillStyle = '#4caf50';
-
-                ctx.fillRect(
-                    0,
-                    0,
-                    800,
-                    20
-                );
-
-
-                canvas.refresh();
-
-            }
-
-
-            // TRATOR
-
-            if (!this.textures.exists('tractor_base')) {
-
-                let canvas =
-                    this.textures.createCanvas(
-                        'tractor_base',
-                        65,
-                        60
-                    );
-
-                let ctx = canvas.context;
-
-
-                ctx.fillStyle = '#2e7d32';
-
-                ctx.fillRect(
-                    0,
-                    20,
-                    60,
-                    30
-                );
-
-
-                ctx.fillStyle = '#1565c0';
-
-                ctx.fillRect(
-                    30,
-                    0,
-                    25,
-                    20
-                );
-
-
-                ctx.fillStyle = '#111111';
-
-
-                ctx.beginPath();
-
-                ctx.arc(
-                    15,
-                    45,
-                    12,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.fill();
-
-
-                ctx.beginPath();
-
-                ctx.arc(
-                    45,
-                    45,
-                    12,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.fill();
-
-
-                canvas.refresh();
-
-            }
-
-
-            // PEDRA
-
-            if (!this.textures.exists('rock_base')) {
-
-                let canvas =
-                    this.textures.createCanvas(
-                        'rock_base',
-                        30,
-                        30
-                    );
-
-                let ctx = canvas.context;
-
-                ctx.fillStyle = '#757575';
-
-                ctx.beginPath();
-
-                ctx.arc(
-                    15,
-                    15,
-                    15,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.fill();
-
-                canvas.refresh();
-
-            }
-
-
-            // RAMPA
-
-            if (!this.textures.exists('ramp_base')) {
-
-                let canvas =
-                    this.textures.createCanvas(
-                        'ramp_base',
-                        80,
-                        40
-                    );
-
-                let ctx = canvas.context;
-
-                ctx.fillStyle = '#8d6e63';
-
-
-                ctx.beginPath();
-
-                ctx.moveTo(0, 40);
-
-                ctx.lineTo(40, 0);
-
-                ctx.lineTo(40, 40);
-
-                ctx.fill();
-
-
-                ctx.fillRect(
-                    40,
-                    0,
-                    40,
-                    40
-                );
-
-
-                canvas.refresh();
-
-            }
-
-
-            // RIO
-
-            if (!this.textures.exists('river_base')) {
-
-                let canvas =
-                    this.textures.createCanvas(
-                        'river_base',
-                        50,
-                        25
-                    );
-
-                let ctx = canvas.context;
-
-                ctx.fillStyle = '#29b6f6';
-
-                ctx.fillRect(
-                    0,
-                    0,
-                    50,
-                    25
-                );
-
-
-                canvas.refresh();
-
-            }
-
-
-            // MOEDA
-
-            if (!this.textures.exists('coin_base')) {
-
-                let canvas =
-                    this.textures.createCanvas(
-                        'coin_base',
-                        20,
-                        20
-                    );
-
-                let ctx = canvas.context;
-
-                ctx.fillStyle = '#ffd700';
-
-                ctx.beginPath();
-
-                ctx.arc(
-                    10,
-                    10,
-                    10,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.fill();
-
-                canvas.refresh();
-
-            }
-
-
-            // FUMAÇA
-
-            if (!this.textures.exists('smoke_particle')) {
-
-                let canvas =
-                    this.textures.createCanvas(
-                        'smoke_particle',
-                        8,
-                        8
-                    );
-
-                let ctx = canvas.context;
-
-                ctx.fillStyle =
-                    'rgba(220,220,220,0.6)';
-
-                ctx.beginPath();
-
-                ctx.arc(
-                    4,
-                    4,
-                    4,
-                    0,
-                    Math.PI * 2
-                );
-
-                ctx.fill();
-
-                canvas.refresh();
-
-            }
-
-        }
-
-
-        create() {
-
-            isGameOver = false;
-
-            score = 0;
-
-            coins = 0;
-
-            currentSpeed = 220;
-
-            nextObstacleX = 600;
-
-
-            // GRUPOS
-
-            groundGroup =
-                this.physics.add.staticGroup();
-
-
-            obstaclesGroup =
-                this.physics.add.staticGroup();
-
-
-            coinsGroup =
-                this.physics.add.group();
-
-
-            // TERRENO INICIAL
-
-            for (
-                let i = 0;
-                i < 4;
-                i++
-            ) {
-
-                groundGroup
-                    .create(
-                        i * 800 + 400,
-                        550,
-                        'ground_base'
-                    )
-                    .refreshBody();
-
-            }
-
-
-            // TRATOR
-
-            tractor =
-                this.physics.add.sprite(
-                    startX,
-                    300,
-                    'tractor_base'
-                );
-
-
-            tractor.setBounce(0.02);
-
-            tractor.setTint(tractorTint);
-
-
-            // FUMAÇA
-
-            smokeParticles =
-                this.add.particles(
-                    0,
-                    0,
-                    'smoke_particle',
-                    {
-                        speedX: {
-                            min: -40,
-                            max: -10
-                        },
-
-                        speedY: {
-                            min: -30,
-                            max: -10
-                        },
-
-                        scale: {
-                            start: 1,
-                            end: 2.5
-                        },
-
-                        alpha: {
-                            start: 0.6,
-                            end: 0
-                        },
-
-                        lifespan: 600,
-
-                        frequency: 40
-                    }
-                );
-
-
-            smokeParticles.startFollow(
-                tractor,
-                -10,
-                30
-            );
-
-
-            // COLISÕES
-
-            this.physics.add.collider(
-                tractor,
-                groundGroup
-            );
-
-
-            this.physics.add.collider(
-                tractor,
-                obstaclesGroup,
-                (t, o) => {
-
-                    this.hitObstacle(t, o);
-
-                }
-            );
-
-
-            this.physics.add.overlap(
-                tractor,
-                coinsGroup,
-                (t, c) => {
-
-                    this.collectCoin(t, c);
-
-                }
-            );
-
-
-            // CÂMERA
-
-            this.cameras.main.startFollow(
-                tractor,
-                true,
-                0.05,
-                0.05,
-                -200,
-                100
-            );
-
-
-            // HUD
-
-            scoreText =
-                this.add.text(
-                    20,
-                    20,
-                    'Distância: 0m',
-                    {
-                        fontSize: '22px',
-                        fill: '#000',
-                        fontWeight: 'bold'
-                    }
-                )
-                .setScrollFactor(0);
-
-
-            coinsText =
-                this.add.text(
-                    20,
-                    50,
-                    'Moedas: 0 🪙',
-                    {
-                        fontSize: '22px',
-                        fill: '#d4af37',
-                        fontWeight: 'bold'
-                    }
-                )
-                .setScrollFactor(0);
-
-
-            levelText =
-                this.add.text(
-                    780,
-                    20,
-                    'Velocidade: 1x',
-                    {
-                        fontSize: '18px',
-                        fill: '#005500',
-                        fontWeight: 'bold'
-                    }
-                )
-                .setOrigin(1, 0)
-                .setScrollFactor(0);
-
-        }
-
-
-        update() {
-
-            if (isGameOver) return;
-
-
-            let cursors =
-                this.input.keyboard.createCursorKeys();
-
-
-            tractor.setVelocityX(
-                currentSpeed
-            );
-
-
-            // PULO
-
-            if (
-                (
-                    cursors.up.isDown ||
-                    cursors.space.isDown
-                ) &&
-                tractor.body.touching.down
-            ) {
-
-                tractor.setVelocityY(-370);
-
-                playSound('jump');
-
-            }
-
-
-            // DISTÂNCIA
-
-            score =
-                Math.max(
-                    0,
-                    Math.floor(
-                        (tractor.x - startX) / 10
-                    )
-                );
-
-
-            scoreText.setText(
-                'Distância: ' + score + 'm'
-            );
-
-
-            // VELOCIDADE
-
-            let speedMultiplier =
-                1 +
-                Math.floor(score / 100) *
-                0.15;
-
-
-            currentSpeed =
-                220 * speedMultiplier;
-
-
-            levelText.setText(
-                'Velocidade: ' +
-                speedMultiplier.toFixed(2) +
-                'x'
-            );
-
-
-            // FUMAÇA
-
-            if (
-                tractor.body.touching.down
-            ) {
-
-                smokeParticles.setActive(true);
-
-            }
-
-            else {
-
-                smokeParticles.setActive(false);
-
-            }
-
-
-            // MAPA INFINITO
-
-            if (
-                tractor.x >
-                nextObstacleX - 800
-            ) {
-
-                groundGroup
-                    .create(
-                        nextObstacleX + 800,
-                        550,
-                        'ground_base'
-                    )
-                    .refreshBody();
-
-
-                this.generateRandomObstacle(
-                    nextObstacleX
-                );
-
-
-                nextObstacleX +=
-                    Phaser.Math.Between(
-                        500,
-                        800
-                    );
-
-            }
-
-
-            // QUEDA
-
-            if (tractor.y > 650) {
-
-                this.triggerGameOver();
-
-            }
-
-        }
-
-
-        generateRandomObstacle(x) {
-
-            let type =
-                Phaser.Math.Between(1, 3);
-
-
-            if (type === 1) {
-
-                obstaclesGroup
-                    .create(
-                        x,
-                        475,
-                        'rock_base'
-                    )
-                    .refreshBody();
-
-            }
-
-            else if (type === 2) {
-
-                obstaclesGroup
-                    .create(
-                        x,
-                        470,
-                        'ramp_base'
-                    )
-                    .refreshBody();
-
-            }
-
-            else if (type === 3) {
-
-                obstaclesGroup
-                    .create(
-                        x,
-                        478,
-                        'river_base'
-                    )
-                    .refreshBody();
-
-            }
-
-
-            // MOEDAS
-
-            let coinCount =
-                Phaser.Math.Between(1, 3);
-
-
-            for (
-                let i = 0;
-                i < coinCount;
-                i++
-            ) {
-
-                let coinY =
-                    type === 2
-                        ? 380
-                        : 430;
-
-
-                let coin =
-                    coinsGroup.create(
-                        x + (i * 40) - 20,
-                        coinY,
-                        'coin_base'
-                    );
-
-
-                coin.body.setAllowGravity(
-                    false
-                );
-
-            }
-
-        }
-
-
-        collectCoin(tractor, coin) {
-
-            coin.disableBody(
-                true,
-                true
-            );
-
-
-            coins += 1;
-
-            totalCoins += 1;
-
-
-            coinsText.setText(
-                'Moedas: ' +
-                coins +
-                ' 🪙'
-            );
-
-
-            playSound('coin');
-
-        }
-
-
-        hitObstacle(tractor, obstacle) {
-
-            if (
-                tractor.body.touching.right ||
-                obstacle.texture.key === 'river_base'
-            ) {
-
-                this.triggerGameOver();
-
-            }
-
-        }
-
-
-        triggerGameOver() {
-
-            if (isGameOver) return;
-
-
-            isGameOver = true;
-
-
-            tractor.setVelocity(0, 0);
-
-            tractor.setTint(0x555555);
-
-
-            smokeParticles.stop();
-
-
-            playSound('gameover');
-
-
-            // FIM DE JOGO
-
-            let gameOverText =
-                this.add.text(
-                    400,
-                    200,
-                    'FIM DE JOGO',
-                    {
-                        fontSize: '48px',
-                        fill: '#ff0000',
-                        fontWeight: 'bold'
-                    }
-                );
-
-
-            gameOverText
-                .setOrigin(0.5)
-                .setScrollFactor(0);
-
-
-            let statsText =
-                this.add.text(
-                    400,
-                    270,
-                    `Você correu ${score}m e pegou ${coins} moedas nesta partida!`,
-                    {
-                        fontSize: '20px',
-                        fill: '#000',
-                        fontWeight: 'bold'
-                    }
-                );
-
-
-            statsText
-                .setOrigin(0.5)
-                .setScrollFactor(0);
-
-
-            let menuText =
-                this.add.text(
-                    400,
-                    350,
-                    'Pressione ESPAÇO ou SETA PARA CIMA para ir ao Menu',
-                    {
-                        fontSize: '18px',
-                        fill: '#333',
-                        fontWeight: 'bold'
-                    }
-                );
-
-
-            menuText
-                .setOrigin(0.5)
-                .setScrollFactor(0);
-
-
-            const returnToMenu =
-                () => {
-
-                    this.scene.start(
-                        'MenuScene'
-                    );
-
-                };
-
-
-            this.input.keyboard.once(
-                'keydown-UP',
-                returnToMenu
-            );
-
-
-            this.input.keyboard.once(
-                'keydown-SPACE',
-                returnToMenu
-            );
-
-        }
-
+    if (gameOver) {
+        return;
     }
 
 
-    // =========================================================
-    // CONFIGURAÇÃO DO PHASER
-    // =========================================================
+    if (
+        tractor.body.blocked.down ||
+        tractor.body.touching.down
+    ) {
 
-    const configGame = {
+        tractor.setVelocityY(-380);
 
-        type: Phaser.AUTO,
+    }
 
-        width: 800,
+}
 
-        height: 600,
 
-        backgroundColor: '#87CEEB',
+// =====================================================
+// PEGAR MOEDA
+// =====================================================
 
-        physics: {
+function collectCoin(tractor, coin) {
 
-            default: 'arcade',
+    coin.destroy();
 
-            arcade: {
+    coins++;
 
-                gravity: {
-                    y: 750
-                },
+    totalCoins++;
 
-                debug: false
+}
 
+
+// =====================================================
+// GAME OVER
+// =====================================================
+
+function endGame() {
+
+    if (gameOver) {
+        return;
+    }
+
+
+    gameOver = true;
+
+
+    tractor.setVelocity(0, 0);
+
+    tractor.setTint(0x555555);
+
+
+    let scene =
+        tractor.scene;
+
+
+    scene.add.text(
+        400,
+        200,
+        "FIM DE JOGO",
+        {
+            fontSize: "48px",
+            color: "#ff0000",
+            fontStyle: "bold"
+        }
+    )
+    .setOrigin(0.5)
+    .setScrollFactor(0);
+
+
+    scene.add.text(
+        400,
+        270,
+        `Você percorreu ${score}m e pegou ${coins} moedas!`,
+        {
+            fontSize: "20px",
+            color: "#000000",
+            fontStyle: "bold"
+        }
+    )
+    .setOrigin(0.5)
+    .setScrollFactor(0);
+
+
+    let menu =
+        scene.add.text(
+            400,
+            350,
+            "CLIQUE AQUI PARA VOLTAR AO MENU",
+            {
+                fontSize: "18px",
+                color: "#ffffff",
+                backgroundColor: "#333333",
+                padding: 12
             }
-
-        },
-
-        scene: [
-            MenuScene,
-            GameScene
-        ]
-
-    };
+        )
+        .setOrigin(0.5)
+        .setInteractive()
+        .setScrollFactor(0);
 
 
-    // INICIAR JOGO
+    menu.on(
+        "pointerdown",
+        () => {
 
-    const runGame =
-        new Phaser.Game(configGame);
+            scene.scene.start("Menu");
+
+        }
+    );
+
+}
+
+
+// =====================================================
+// CONFIGURAÇÃO PHASER
+// =====================================================
+
+const config = {
+
+    type: Phaser.AUTO,
+
+    width: 800,
+
+    height: 600,
+
+    backgroundColor: "#87CEEB",
+
+    physics: {
+
+        default: "arcade",
+
+        arcade: {
+
+            gravity: {
+                y: 900
+            },
+
+            debug: false
+
+        }
+
+    },
+
+    scale: {
+
+        mode: Phaser.Scale.FIT,
+
+        autoCenter:
+            Phaser.Scale.CENTER_BOTH
+
+    },
+
+    scene: [
+        MenuScene,
+        GameScene
+    ]
+
+};
+
+
+// =====================================================
+// INICIAR
+// =====================================================
+
+window.onload = function() {
+
+    console.log("Phaser carregado.");
+
+    new Phaser.Game(config);
+
+};
 
 </script>
 
