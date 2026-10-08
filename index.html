@@ -67,8 +67,13 @@ let gameOver = false;
 let jumpsUsed = 0;
 const MAX_JUMPS = 2;
 
-let lastObstacleX = 1000;
+/* CONTROLE DOS OBSTÁCULOS */
+let lastObstacleX = 0;
 let lastGroundX = 0;
+
+/* Distância dos obstáculos */
+const MIN_OBSTACLE_DISTANCE = 750;
+const MAX_OBSTACLE_DISTANCE = 1050;
 
 let rain = false;
 let rainParticles;
@@ -188,7 +193,7 @@ function saveData(){
 
 function createTextures(scene){
 
-    /* ================= TRATOR ================= */
+    /* TRATOR */
 
     let g = scene.make.graphics({
         x:0,
@@ -240,7 +245,7 @@ function createTextures(scene){
     g.destroy();
 
 
-    /* ================= CHÃO ================= */
+    /* CHÃO */
 
     g = scene.make.graphics({
         x:0,
@@ -275,7 +280,7 @@ function createTextures(scene){
     g.destroy();
 
 
-    /* ================= PEDRA ================= */
+    /* PEDRA */
 
     g = scene.make.graphics({
         x:0,
@@ -298,7 +303,7 @@ function createTextures(scene){
     g.destroy();
 
 
-    /* ================= RAMPA ================= */
+    /* RAMPA */
 
     g = scene.make.graphics({
         x:0,
@@ -327,7 +332,7 @@ function createTextures(scene){
     g.destroy();
 
 
-    /* ================= ÁGUA ================= */
+    /* ÁGUA */
 
     g = scene.make.graphics({
         x:0,
@@ -357,7 +362,7 @@ function createTextures(scene){
     g.destroy();
 
 
-    /* ================= MOEDA ================= */
+    /* MOEDA */
 
     g = scene.make.graphics({
         x:0,
@@ -748,12 +753,9 @@ class GameScene extends Phaser.Scene{
 
         gameOver = false;
 
-        lastObstacleX = 1000;
+        lastObstacleX = 0;
         lastGroundX = 0;
 
-        /* IMPORTANTE:
-           Começa sem nenhum pulo usado.
-        */
         jumpsUsed = 0;
 
         this.cameras.main.setBackgroundColor(
@@ -811,13 +813,6 @@ class GameScene extends Phaser.Scene{
 
         tractor.setCollideWorldBounds(false);
 
-        /*
-           HITBOX DO TRATOR.
-
-           Somente a parte inferior entra
-           na colisão.
-        */
-
         tractor.body.setSize(
             100,
             35
@@ -861,20 +856,23 @@ class GameScene extends Phaser.Scene{
         }
 
 
-        /* OBSTÁCULOS */
+        /* OBSTÁCULOS INICIAIS */
+
+        let firstObstacle = 1000;
 
         for(
-            let x=900;
-            x<2800;
-            x+=Phaser.Math.Between(
-                500,
-                750
-            )
+            let x=firstObstacle;
+            x<3200;
         ){
 
             createObstacle(
                 this,
                 x
+            );
+
+            x += Phaser.Math.Between(
+                MIN_OBSTACLE_DISTANCE,
+                MAX_OBSTACLE_DISTANCE
             );
         }
 
@@ -1182,21 +1180,21 @@ class GameScene extends Phaser.Scene{
 
         if(
             tractor.x >
-            lastObstacleX - 1600
+            lastObstacleX - 1800
         ){
 
             createObstacle(
                 this,
                 lastObstacleX +
                 Phaser.Math.Between(
-                    500,
-                    750
+                    MIN_OBSTACLE_DISTANCE,
+                    MAX_OBSTACLE_DISTANCE
                 )
             );
         }
 
 
-        /* RESET DO PULO NO CHÃO */
+        /* RESET DO PULO */
 
         if(
             tractor.body.blocked.down
@@ -1273,14 +1271,6 @@ function createObstacle(scene,x){
 
         obstacle.setScale(0.45);
 
-        /*
-           HITBOX MUITO MENOR.
-
-           A pedra pode parecer um pouco maior,
-           mas a área que realmente faz o trator
-           bater fica pequena.
-        */
-
         obstacle.body.setSize(
             35,
             25
@@ -1290,7 +1280,6 @@ function createObstacle(scene,x){
             17,
             40
         );
-
     }
 
 
@@ -1331,11 +1320,6 @@ function createObstacle(scene,x){
             );
 
         obstacle.setScale(0.55);
-
-        /*
-           Só a parte de baixo da água
-           conta como obstáculo.
-        */
 
         obstacle.body.setSize(
             60,
@@ -1406,7 +1390,7 @@ function collectCoin(
 
 
 /* =========================================================
-   ⭐ PULO DUPLO ⭐
+   PULO DUPLO
 ========================================================= */
 
 function jump(){
@@ -1414,12 +1398,6 @@ function jump(){
     if(gameOver)
         return;
 
-
-    /*
-       PRIMEIRO TOQUE
-       ----------------
-       Faz o primeiro pulo.
-    */
 
     if(jumpsUsed === 0){
 
@@ -1435,13 +1413,6 @@ function jump(){
     }
 
 
-    /*
-       SEGUNDO TOQUE
-       ----------------
-       Funciona mesmo estando
-       completamente no ar.
-    */
-
     if(jumpsUsed === 1){
 
         tractor.setVelocityY(
@@ -1454,18 +1425,11 @@ function jump(){
 
         return;
     }
-
-
-    /*
-       Se jumpsUsed === 2,
-       não faz mais nenhum pulo
-       até tocar novamente no chão.
-    */
 }
 
 
 /* =========================================================
-   COLISÃO
+   COLISÃO COM OBSTÁCULO
 ========================================================= */
 
 function hitObstacle(
@@ -1476,24 +1440,21 @@ function hitObstacle(
     if(gameOver)
         return;
 
-
     /*
-       PROTEÇÃO EXTRA:
-
-       Se o trator estiver claramente acima
+       Se o trator estiver realmente acima
        do obstáculo, não perde vida.
 
-       Isso ajuda a evitar colisões injustas.
+       Se houver contato lateral ou por baixo,
+       perde vida.
     */
 
     if(
-        tractor.body.bottom <
-        obstacle.body.top + 8
+        tractor.body.bottom <=
+        obstacle.body.top + 3
     ){
 
         return;
     }
-
 
     loseLife.call(this);
 }
@@ -1533,7 +1494,7 @@ function loseLife(){
     }else{
 
         tractor.setPosition(
-            tractor.x + 120,
+            tractor.x + 180,
             350
         );
 
@@ -1541,11 +1502,6 @@ function loseLife(){
             0,
             -250
         );
-
-        /*
-           Depois de perder uma vida,
-           pode fazer os dois pulos novamente.
-        */
 
         jumpsUsed = 0;
     }
