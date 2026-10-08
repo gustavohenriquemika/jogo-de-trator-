@@ -23,6 +23,7 @@
 </head>
 <body>
 <script>
+    // --- Sistema de Áudio Nativo (Web Audio API) ---
     let audioCtx = null;
     
     function initAudio() {
@@ -74,21 +75,27 @@
         }
     }
 
+    // --- Configurações e Variáveis Globais de Estado ---
     let totalCoins = 0;
     let tractorTint = 0xffffff; 
     let unlockedSkins = { green: true, red: false, blue: false };
+    
     let isGameOver = false;
     let score = 0, coins = 0, currentSpeed = 220;
     let startX = 200;
     let nextObstacleX = 600;
-    let tractor, groundGroup, obstaclesGroup, coinsGroup, smokeParticles, scoreText, coinsText, levelText;
+    
+    let tractor, groundGroup, obstaclesGroup, coinsGroup, smokeParticles;
+    let scoreText, coinsText, levelText;
 
+    // --- CENA DO MENU INICIAL ---
     class MenuScene extends Phaser.Scene {
         constructor() { super('MenuScene'); }
         create() {
             this.add.text(400, 150, 'JOGO DO TRATOR INFINITO', { fontSize: '42px', fill: '#fff', fontWeight: 'bold' }).setOrigin(0.5);
             this.add.text(400, 220, `Suas Moedas: ${totalCoins} 🪙`, { fontSize: '24px', fill: '#ffd700' }).setOrigin(0.5);
 
+            // Botão Jogar
             let btnPlay = this.add.text(400, 320, '▶ JOGAR', { fontSize: '32px', fill: '#4caf50', backgroundColor: '#111', padding: 12 }).setOrigin(0.5).setInteractive();
             btnPlay.on('pointerdown', () => {
                 initAudio();
@@ -97,8 +104,10 @@
             btnPlay.on('pointerover', () => btnPlay.setStyle({ fill: '#81c784' }));
             btnPlay.on('pointerout', () => btnPlay.setStyle({ fill: '#4caf50' }));
 
+            // Área da Loja
             this.add.text(400, 420, 'LOJA DE TRATORES (Custo: 10 Moedas cada)', { fontSize: '18px', fill: '#bbb' }).setOrigin(0.5);
 
+            // Opção Vermelha
             let txtRed = unlockedSkins.red ? 'VERMELHO (Equipar)' : 'COMPRAR VERMELHO';
             let btnRed = this.add.text(250, 480, txtRed, { fontSize: '16px', fill: '#fff', backgroundColor: '#e53935', padding: 8 }).setOrigin(0.5).setInteractive();
             btnRed.on('pointerdown', () => {
@@ -106,6 +115,7 @@
                 this.handleSkinShop('red', 0xff5555);
             });
 
+            // Opção Azul
             let txtBlue = unlockedSkins.blue ? 'AZUL (Equipar)' : 'COMPRAR AZUL';
             let btnBlue = this.add.text(550, 480, txtBlue, { fontSize: '16px', fill: '#fff', backgroundColor: '#1e88e5', padding: 8 }).setOrigin(0.5).setInteractive();
             btnBlue.on('pointerdown', () => {
@@ -132,10 +142,12 @@
         }
     }
 
+    // --- CENA PRINCIPAL DO JOGO ---
     class GameScene extends Phaser.Scene {
         constructor() { super('GameScene'); }
 
         create() {
+            // Reinicialização de parâmetros da partida
             isGameOver = false;
             score = 0;
             coins = 0;
@@ -146,6 +158,7 @@
             obstaclesGroup = this.physics.add.staticGroup();
             coinsGroup = this.physics.add.group();
 
+            // Geração das formas gráficas automáticas em memória
             let groundGraphic = this.make.graphics({ x: 0, y: 0, add: false });
             groundGraphic.fillStyle(0x795548, 1); groundGraphic.fillRect(0, 20, 800, 100);
             groundGraphic.fillStyle(0x4caf50, 1); groundGraphic.fillRect(0, 0, 800, 20);
@@ -177,14 +190,17 @@
             particleGraphic.fillStyle(0xdddddd, 0.6); particleGraphic.fillCircle(4, 4, 4);
             particleGraphic.generateTexture('smoke_particle', 8, 8);
 
+            // Montagem do cenário base estável
             for (let i = 0; i < 4; i++) {
                 groundGroup.create(i * 800 + 400, 550, 'ground_base').refreshBody();
             }
 
+            // Ativação do veículo principal
             tractor = this.physics.add.sprite(startX, 300, 'tractor_base');
             tractor.setBounce(0.02);
             tractor.setTint(tractorTint);
 
+            // Sistema visual de partículas na roda do trator
             smokeParticles = this.add.particles(0, 0, 'smoke_particle', {
                 speedX: { min: -40, max: -10 }, speedY: { min: -30, max: -10 },
                 scale: { start: 1, end: 2.5 }, alpha: { start: 0.6, end: 0 },
@@ -192,25 +208,24 @@
             });
             smokeParticles.startFollow(tractor, -10, 30);
 
+            // Mecânicas de colisão física internas da cena
             this.physics.add.collider(tractor, groundGroup);
             this.physics.add.collider(tractor, obstaclesGroup, this.hitObstacle, null, this);
             this.physics.add.overlap(tractor, coinsGroup, this.collectCoin, null, this);
 
-            this.input.keyboard.createCursorKeys();
             this.cameras.main.startFollow(tractor, true, 0.05, 0.05, -200, 100);
 
-            scoreText = this.add.text(20, 20, 'Distância: 0m', { fontSize: '22px', fill: '#000', fontWeight: 'bold' }).setScrollFactor(0);
-            coinsText = this.add.text(20, 50, 'Moedas: 0 🪙', { fontSize: '22px', fill: '#d4af37', fontWeight: 'bold' }).setScrollFactor(0);
-            levelText = this.add.text(780, 20, 'Velocidade: 1x', { fontSize: '18px', fill: '#005500', fontWeight: 'bold' }).setOrigin(1, 0).setScrollFactor(0);
-        }
-
-        update() {
-            if (isGameOver) return;
-
-            let cursors = this.input.keyboard.createCursorKeys();
-            tractor.setVelocityX(currentSpeed);
-
-            if ((cursors.up.isDown || cursors.space.isDown) && tractor.body.touching.down) {
+            // Textos fixos de interface (HUD)
+Use o código com cuidado.
+scoreText = this.add.text(20, 20, 'Distância: 0m', { fontSize: '22px', fill: '#000', fontWeight: 'bold' }).setScrollFactor(0);
+coinsText = this.add.text(20, 50, 'Moedas: 0 🪙', { fontSize: '22px', fill: '#d4af37', fontWeight: 'bold' }).setScrollFactor(0);
+levelText = this.add.text(780, 20, 'Velocidade: 1x', { fontSize: '18px', fill: '#005500', fontWeight: 'bold' }).setOrigin(1, 0).setScrollFactor(0);
+}
+update() {
+if (isGameOver) return;
+let cursors = this.input.keyboard.createCursorKeys();
+tractor.setVelocityX(currentSpeed);
+if ((cursors.up.isDown || cursors.space.isDown) && tractor.body.touching.down) {
 tractor.setVelocityY(-370);
 playSound('jump');
 }
@@ -224,6 +239,7 @@ smokeParticles.setActive(true);
 } else {
 smokeParticles.setActive(false);
 }
+// Geração contínua e infinita do asfalto à frente
 if (tractor.x > nextObstacleX - 800) {
 groundGroup.create(nextObstacleX + 800, 550, 'ground_base').refreshBody();
 this.generateRandomObstacle(nextObstacleX);
@@ -293,3 +309,7 @@ scene: [MenuScene, GameScene]
 const runGame = new Phaser.Game(configGame);
 
 
+
+<FollowUp>
+Após salvar e atualizar seu arquivo no GitHub, limpe o cache do seu navegador pressionando **Ctrl + F5** na página do jogo. Me avise se o **Menu Inicial com o botão verde JOGAR** apareceu corretamente agora!
+</FollowUp>
