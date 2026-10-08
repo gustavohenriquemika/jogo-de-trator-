@@ -1,12 +1,13 @@
-html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jogo do Trator Infinito</title>
-    <!-- Framework Phaser 3 estável via CDN oficial -->
-    <script src="https://cloudflare.com"></script>
+
+    <!-- Phaser 3 -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+
     <style>
         body {
             margin: 0;
@@ -18,323 +19,1267 @@ html
             overflow: hidden;
             font-family: sans-serif;
         }
+
         canvas {
             box-shadow: 0px 10px 30px rgba(0,0,0,0.5);
         }
     </style>
 </head>
+
 <body>
+
 <script>
-    // --- Sistema de Áudio Nativo (Web Audio API) ---
+    // =========================================================
+    // ÁUDIO
+    // =========================================================
+
     let audioCtx = null;
-    
+
     function initAudio() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
+
         if (audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
     }
-    
+
     function playSound(type) {
         if (!audioCtx) return;
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        
+
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
+
         osc.connect(gain);
         gain.connect(audioCtx.destination);
 
         if (type === 'jump') {
             osc.type = 'triangle';
-            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.15);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
-        } else if (type === 'coin') {
+
+            osc.frequency.setValueAtTime(
+                150,
+                audioCtx.currentTime
+            );
+
+            osc.frequency.exponentialRampToValueAtTime(
+                400,
+                audioCtx.currentTime + 0.15
+            );
+
+            gain.gain.setValueAtTime(
+                0.3,
+                audioCtx.currentTime
+            );
+
+            gain.gain.linearRampToValueAtTime(
+                0,
+                audioCtx.currentTime + 0.15
+            );
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        else if (type === 'coin') {
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
-            osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.08);
-            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.2);
-        } else if (type === 'gameover') {
+
+            osc.frequency.setValueAtTime(
+                587.33,
+                audioCtx.currentTime
+            );
+
+            osc.frequency.setValueAtTime(
+                880,
+                audioCtx.currentTime + 0.08
+            );
+
+            gain.gain.setValueAtTime(
+                0.2,
+                audioCtx.currentTime
+            );
+
+            gain.gain.linearRampToValueAtTime(
+                0,
+                audioCtx.currentTime + 0.2
+            );
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        else if (type === 'gameover') {
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-            osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime + 0.4);
-            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.4);
-        } else if (type === 'buy') {
+
+            osc.frequency.setValueAtTime(
+                300,
+                audioCtx.currentTime
+            );
+
+            osc.frequency.linearRampToValueAtTime(
+                80,
+                audioCtx.currentTime + 0.4
+            );
+
+            gain.gain.setValueAtTime(
+                0.4,
+                audioCtx.currentTime
+            );
+
+            gain.gain.linearRampToValueAtTime(
+                0,
+                audioCtx.currentTime + 0.4
+            );
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        else if (type === 'buy') {
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(660, audioCtx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+
+            osc.frequency.setValueAtTime(
+                440,
+                audioCtx.currentTime
+            );
+
+            osc.frequency.exponentialRampToValueAtTime(
+                660,
+                audioCtx.currentTime + 0.1
+            );
+
+            gain.gain.setValueAtTime(
+                0.3,
+                audioCtx.currentTime
+            );
+
+            gain.gain.linearRampToValueAtTime(
+                0,
+                audioCtx.currentTime + 0.15
+            );
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
         }
     }
 
-    // --- Variáveis Globais de Estado Permanente ---
+
+    // =========================================================
+    // VARIÁVEIS GLOBAIS
+    // =========================================================
+
     let totalCoins = 0;
-    let tractorTint = 0xffffff; 
-    let unlockedSkins = { green: true, red: false, blue: false };
-    
+
+    let tractorTint = 0xffffff;
+
+    let unlockedSkins = {
+        green: true,
+        red: false,
+        blue: false
+    };
+
     let isGameOver = false;
-    let score = 0, coins = 0, currentSpeed = 220;
+
+    let score = 0;
+    let coins = 0;
+
+    let currentSpeed = 220;
+
     let startX = 200;
     let nextObstacleX = 600;
-    
-    let tractor, groundGroup, obstaclesGroup, coinsGroup, smokeParticles;
-    let scoreText, coinsText, levelText;
 
-    // --- CENA DO MENU INICIAL ---
+    let tractor;
+    let groundGroup;
+    let obstaclesGroup;
+    let coinsGroup;
+    let smokeParticles;
+
+    let scoreText;
+    let coinsText;
+    let levelText;
+
+
+    // =========================================================
+    // MENU
+    // =========================================================
+
     class MenuScene extends Phaser.Scene {
-        constructor() { super('MenuScene'); }
-        
-        create() {
-            this.add.text(400, 150, 'JOGO DO TRATOR INFINITO', { fontSize: '42px', fill: '#fff', fontWeight: 'bold' }).setOrigin(0.5);
-            this.add.text(400, 220, `Suas Moedas: ${totalCoins} 🪙`, { fontSize: '24px', fill: '#ffd700' }).setOrigin(0.5);
 
-            // Botão Jogar
-            let btnPlay = this.add.text(400, 320, '▶ JOGAR', { fontSize: '32px', fill: '#4caf50', backgroundColor: '#111', padding: 12 }).setOrigin(0.5).setInteractive();
-            btnPlay.on('pointerdown', () => {
-                initAudio();
-                this.scene.start('GameScene');
-            });
-            btnPlay.on('pointerover', () => btnPlay.setStyle({ fill: '#81c784' }));
-            btnPlay.on('pointerout', () => btnPlay.setStyle({ fill: '#4caf50' }));
-
-            // Interface da Loja
-            this.add.text(400, 420, 'LOJA DE TRATORES (Custo: 10 Moedas cada)', { fontSize: '18px', fill: '#bbb' }).setOrigin(0.5);
-
-            let txtRed = unlockedSkins.red ? 'VERMELHO (Equipar)' : 'COMPRAR VERMELHO';
-            let btnRed = this.add.text(250, 480, txtRed, { fontSize: '16px', fill: '#fff', backgroundColor: '#e53935', padding: 8 }).setOrigin(0.5).setInteractive();
-            btnRed.on('pointerdown', () => {
-                initAudio();
-                this.handleSkinShop('red', 0xff5555);
-            });
-
-            let txtBlue = unlockedSkins.blue ? 'AZUL (Equipar)' : 'COMPRAR AZUL';
-            let btnBlue = this.add.text(550, 480, txtBlue, { fontSize: '16px', fill: '#fff', backgroundColor: '#1e88e5', padding: 8 }).setOrigin(0.5).setInteractive();
-            btnBlue.on('pointerdown', () => {
-                initAudio();
-                this.handleSkinShop('blue', 0x5555ff);
-            });
-            
-            if (tractorTint === 0xff5555) btnRed.setStyle({ stroke: '#fff', strokeThickness: 4 });
-            if (tractorTint === 0x5555ff) btnBlue.setStyle({ stroke: '#fff', strokeThickness: 4 });
+        constructor() {
+            super('MenuScene');
         }
+
+        create() {
+
+            this.add.text(
+                400,
+                150,
+                'JOGO DO TRATOR INFINITO',
+                {
+                    fontSize: '42px',
+                    fill: '#fff',
+                    fontWeight: 'bold'
+                }
+            ).setOrigin(0.5);
+
+
+            this.add.text(
+                400,
+                220,
+                `Suas Moedas: ${totalCoins} 🪙`,
+                {
+                    fontSize: '24px',
+                    fill: '#ffd700'
+                }
+            ).setOrigin(0.5);
+
+
+            // BOTÃO JOGAR
+
+            let btnPlay = this.add.text(
+                400,
+                320,
+                '▶ JOGAR',
+                {
+                    fontSize: '32px',
+                    fill: '#4caf50',
+                    backgroundColor: '#111',
+                    padding: 12
+                }
+            )
+            .setOrigin(0.5)
+            .setInteractive();
+
+
+            btnPlay.on('pointerdown', () => {
+
+                initAudio();
+
+                this.scene.start('GameScene');
+
+            });
+
+
+            btnPlay.on('pointerover', () => {
+
+                btnPlay.setStyle({
+                    fill: '#81c784'
+                });
+
+            });
+
+
+            btnPlay.on('pointerout', () => {
+
+                btnPlay.setStyle({
+                    fill: '#4caf50'
+                });
+
+            });
+
+
+            // LOJA
+
+            this.add.text(
+                400,
+                420,
+                'LOJA DE TRATORES (Custo: 10 Moedas cada)',
+                {
+                    fontSize: '18px',
+                    fill: '#bbb'
+                }
+            ).setOrigin(0.5);
+
+
+            // VERMELHO
+
+            let txtRed = unlockedSkins.red
+                ? 'VERMELHO (Equipar)'
+                : 'COMPRAR VERMELHO';
+
+
+            let btnRed = this.add.text(
+                250,
+                480,
+                txtRed,
+                {
+                    fontSize: '16px',
+                    fill: '#fff',
+                    backgroundColor: '#e53935',
+                    padding: 8
+                }
+            )
+            .setOrigin(0.5)
+            .setInteractive();
+
+
+            btnRed.on('pointerdown', () => {
+
+                initAudio();
+
+                this.handleSkinShop(
+                    'red',
+                    0xff5555
+                );
+
+            });
+
+
+            // AZUL
+
+            let txtBlue = unlockedSkins.blue
+                ? 'AZUL (Equipar)'
+                : 'COMPRAR AZUL';
+
+
+            let btnBlue = this.add.text(
+                550,
+                480,
+                txtBlue,
+                {
+                    fontSize: '16px',
+                    fill: '#fff',
+                    backgroundColor: '#1e88e5',
+                    padding: 8
+                }
+            )
+            .setOrigin(0.5)
+            .setInteractive();
+
+
+            btnBlue.on('pointerdown', () => {
+
+                initAudio();
+
+                this.handleSkinShop(
+                    'blue',
+                    0x5555ff
+                );
+
+            });
+
+
+            if (tractorTint === 0xff5555) {
+
+                btnRed.setStyle({
+                    stroke: '#fff',
+                    strokeThickness: 4
+                });
+
+            }
+
+
+            if (tractorTint === 0x5555ff) {
+
+                btnBlue.setStyle({
+                    stroke: '#fff',
+                    strokeThickness: 4
+                });
+
+            }
+
+        }
+
 
         handleSkinShop(skinKey, tintValue) {
+
             if (unlockedSkins[skinKey]) {
+
                 tractorTint = tintValue;
+
                 playSound('buy');
+
                 this.scene.restart();
-            } else if (totalCoins >= 10) {
-                totalCoins -= 10;
-                unlockedSkins[skinKey] = true;
-                tractorTint = tintValue;
-                playSound('buy');
-                this.scene.restart();
+
             }
+
+            else if (totalCoins >= 10) {
+
+                totalCoins -= 10;
+
+                unlockedSkins[skinKey] = true;
+
+                tractorTint = tintValue;
+
+                playSound('buy');
+
+                this.scene.restart();
+
+            }
+
         }
+
     }
 
-    // --- CENA PRINCIPAL DO JOGO ---
-    class GameScene extends Phaser.Scene {
-        constructor() { super('GameScene'); }
 
-        preload() {
-            // Correção Absoluta: Gerando e injetando as artes diretamente no cache nativo com segurança (Evita tela preta)
-            
-            // 1. Chão
-            if (!this.textures.exists('ground_base')) {
-                let canvas = this.textures.createCanvas('ground_base', 800, 120);
-                let ctx = canvas.context;
-                ctx.fillStyle = '#795548'; ctx.fillRect(0, 20, 800, 100);
-                ctx.fillStyle = '#4caf50'; ctx.fillRect(0, 0, 800, 20);
-                canvas.refresh();
-            }
-            // 2. Trator Base
-            if (!this.textures.exists('tractor_base')) {
-                let canvas = this.textures.createCanvas('tractor_base', 65, 60);
-                let ctx = canvas.context;
-                ctx.fillStyle = '#2e7d32'; ctx.fillRect(0, 20, 60, 30);
-                ctx.fillStyle = '#1565c0'; ctx.fillRect(30, 0, 25, 20);
-                ctx.fillStyle = '#111111';
-                ctx.beginPath(); ctx.arc(15, 45, 12, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(45, 45, 12, 0, Math.PI * 2); ctx.fill();
-                canvas.refresh();
-            }
-            // 3. Pedra
-            if (!this.textures.exists('rock_base')) {
-                let canvas = this.textures.createCanvas('rock_base', 30, 30);
-                let ctx = canvas.context;
-                ctx.fillStyle = '#757575'; ctx.beginPath(); ctx.arc(15, 15, 15, 0, Math.PI * 2); ctx.fill();
-                canvas.refresh();
-            }
-            // 4. Rampa
-            if (!this.textures.exists('ramp_base')) {
-                let canvas = this.textures.createCanvas('ramp_base', 80, 40);
-                let ctx = canvas.context;
-                ctx.fillStyle = '#8d6e63';
-                ctx.beginPath(); ctx.moveTo(0, 40); ctx.lineTo(40, 0); ctx.lineTo(40, 40); ctx.fill();
-                ctx.fillRect(40, 0, 40, 40);
-                canvas.refresh();
-            }
-            // 5. Rio
-            if (!this.textures.exists('river_base')) {
-                let canvas = this.textures.createCanvas('river_base', 50, 25);
-                let ctx = canvas.context;
-                ctx.fillStyle = '#29b6f6'; ctx.fillRect(0, 0, 50, 25);
-                canvas.refresh();
-            }
-            // 6. Moeda
-            if (!this.textures.exists('coin_base')) {
-                let canvas = this.textures.createCanvas('coin_base', 20, 20);
-                let ctx = canvas.context;
-                ctx.fillStyle = '#ffd700'; ctx.beginPath(); ctx.arc(10, 10, 10, 0, Math.PI * 2); ctx.fill();
-                canvas.refresh();
-            }
-            // 7. Partícula
-            if (!this.textures.exists('smoke_particle')) {
-                let canvas = this.textures.createCanvas('smoke_particle', 8, 8);
-                let ctx = canvas.context;
-                ctx.fillStyle = 'rgba(220, 220, 220, 0.6)'; ctx.beginPath(); ctx.arc(4, 4, 4, 0, Math.PI * 2); ctx.fill();
-                canvas.refresh();
-            }
+    // =========================================================
+    // JOGO
+    // =========================================================
+
+    class GameScene extends Phaser.Scene {
+
+        constructor() {
+            super('GameScene');
         }
 
-        create() {
-            isGameOver = false;
-            score = 0;
-            coins = 0;
-            currentSpeed = 220;
-            nextObstacleX = 600;
 
-            groundGroup = this.physics.add.staticGroup();
-            obstaclesGroup = this.physics.add.staticGroup();
-            coinsGroup = this.physics.add.group();
+        preload() {
 
-            // Monta terreno inicial estável
-            for (let i = 0; i < 4; i++) {
-                groundGroup.create(i * 800 + 400, 550, 'ground_base').refreshBody();
+            // CHÃO
+
+            if (!this.textures.exists('ground_base')) {
+
+                let canvas =
+                    this.textures.createCanvas(
+                        'ground_base',
+                        800,
+                        120
+                    );
+
+                let ctx = canvas.context;
+
+                ctx.fillStyle = '#795548';
+
+                ctx.fillRect(
+                    0,
+                    20,
+                    800,
+                    100
+                );
+
+
+                ctx.fillStyle = '#4caf50';
+
+                ctx.fillRect(
+                    0,
+                    0,
+                    800,
+                    20
+                );
+
+
+                canvas.refresh();
+
             }
 
-            // Ativa o Trator
-            tractor = this.physics.add.sprite(startX, 300, 'tractor_base');
+
+            // TRATOR
+
+            if (!this.textures.exists('tractor_base')) {
+
+                let canvas =
+                    this.textures.createCanvas(
+                        'tractor_base',
+                        65,
+                        60
+                    );
+
+                let ctx = canvas.context;
+
+
+                ctx.fillStyle = '#2e7d32';
+
+                ctx.fillRect(
+                    0,
+                    20,
+                    60,
+                    30
+                );
+
+
+                ctx.fillStyle = '#1565c0';
+
+                ctx.fillRect(
+                    30,
+                    0,
+                    25,
+                    20
+                );
+
+
+                ctx.fillStyle = '#111111';
+
+
+                ctx.beginPath();
+
+                ctx.arc(
+                    15,
+                    45,
+                    12,
+                    0,
+                    Math.PI * 2
+                );
+
+                ctx.fill();
+
+
+                ctx.beginPath();
+
+                ctx.arc(
+                    45,
+                    45,
+                    12,
+                    0,
+                    Math.PI * 2
+                );
+
+                ctx.fill();
+
+
+                canvas.refresh();
+
+            }
+
+
+            // PEDRA
+
+            if (!this.textures.exists('rock_base')) {
+
+                let canvas =
+                    this.textures.createCanvas(
+                        'rock_base',
+                        30,
+                        30
+                    );
+
+                let ctx = canvas.context;
+
+                ctx.fillStyle = '#757575';
+
+                ctx.beginPath();
+
+                ctx.arc(
+                    15,
+                    15,
+                    15,
+                    0,
+                    Math.PI * 2
+                );
+
+                ctx.fill();
+
+                canvas.refresh();
+
+            }
+
+
+            // RAMPA
+
+            if (!this.textures.exists('ramp_base')) {
+
+                let canvas =
+                    this.textures.createCanvas(
+                        'ramp_base',
+                        80,
+                        40
+                    );
+
+                let ctx = canvas.context;
+
+                ctx.fillStyle = '#8d6e63';
+
+
+                ctx.beginPath();
+
+                ctx.moveTo(0, 40);
+
+                ctx.lineTo(40, 0);
+
+                ctx.lineTo(40, 40);
+
+                ctx.fill();
+
+
+                ctx.fillRect(
+                    40,
+                    0,
+                    40,
+                    40
+                );
+
+
+                canvas.refresh();
+
+            }
+
+
+            // RIO
+
+            if (!this.textures.exists('river_base')) {
+
+                let canvas =
+                    this.textures.createCanvas(
+                        'river_base',
+                        50,
+                        25
+                    );
+
+                let ctx = canvas.context;
+
+                ctx.fillStyle = '#29b6f6';
+
+                ctx.fillRect(
+                    0,
+                    0,
+                    50,
+                    25
+                );
+
+
+                canvas.refresh();
+
+            }
+
+
+            // MOEDA
+
+            if (!this.textures.exists('coin_base')) {
+
+                let canvas =
+                    this.textures.createCanvas(
+                        'coin_base',
+                        20,
+                        20
+                    );
+
+                let ctx = canvas.context;
+
+                ctx.fillStyle = '#ffd700';
+
+                ctx.beginPath();
+
+                ctx.arc(
+                    10,
+                    10,
+                    10,
+                    0,
+                    Math.PI * 2
+                );
+
+                ctx.fill();
+
+                canvas.refresh();
+
+            }
+
+
+            // FUMAÇA
+
+            if (!this.textures.exists('smoke_particle')) {
+
+                let canvas =
+                    this.textures.createCanvas(
+                        'smoke_particle',
+                        8,
+                        8
+                    );
+
+                let ctx = canvas.context;
+
+                ctx.fillStyle =
+                    'rgba(220,220,220,0.6)';
+
+                ctx.beginPath();
+
+                ctx.arc(
+                    4,
+                    4,
+                    4,
+                    0,
+                    Math.PI * 2
+                );
+
+                ctx.fill();
+
+                canvas.refresh();
+
+            }
+
+        }
+
+
+        create() {
+
+            isGameOver = false;
+
+            score = 0;
+
+            coins = 0;
+
+            currentSpeed = 220;
+
+            nextObstacleX = 600;
+
+
+            // GRUPOS
+
+            groundGroup =
+                this.physics.add.staticGroup();
+
+
+            obstaclesGroup =
+                this.physics.add.staticGroup();
+
+
+            coinsGroup =
+                this.physics.add.group();
+
+
+            // TERRENO INICIAL
+
+            for (
+                let i = 0;
+                i < 4;
+                i++
+            ) {
+
+                groundGroup
+                    .create(
+                        i * 800 + 400,
+                        550,
+                        'ground_base'
+                    )
+                    .refreshBody();
+
+            }
+
+
+            // TRATOR
+
+            tractor =
+                this.physics.add.sprite(
+                    startX,
+                    300,
+                    'tractor_base'
+                );
+
+
             tractor.setBounce(0.02);
+
             tractor.setTint(tractorTint);
 
-Use o código com cuidado.
-// Efeito visual de Poeira/Fumaça
-smokeParticles = this.add.particles(0, 0, 'smoke_particle', {
-speedX: { min: -40, max: -10 }, speedY: { min: -30, max: -10 },
-scale: { start: 1, end: 2.5 }, alpha: { start: 0.6, end: 0 },
-lifespan: 600, frequency: 40
-});
-smokeParticles.startFollow(tractor, -10, 30);
-// Configurando os colisores estáveis
-this.physics.add.collider(tractor, groundGroup);
-this.physics.add.collider(tractor, obstaclesGroup, (t, o) => { this.hitObstacle(t, o); });
-this.physics.add.overlap(tractor, coinsGroup, (t, c) => { this.collectCoin(t, c); });
-this.cameras.main.startFollow(tractor, true, 0.05, 0.05, -200, 100);
-// Textos fixos de interface (HUD)
-scoreText = this.add.text(20, 20, 'Distância: 0m', { fontSize: '22px', fill: '#000', fontWeight: 'bold' }).setScrollFactor(0);
-coinsText = this.add.text(20, 50, 'Moedas: 0 🪙', { fontSize: '22px', fill: '#d4af37', fontWeight: 'bold' }).setScrollFactor(0);
-levelText = this.add.text(780, 20, 'Velocidade: 1x', { fontSize: '18px', fill: '#005500', fontWeight: 'bold' }).setOrigin(1, 0).setScrollFactor(0);
-}
-update() {
-if (isGameOver) return;
-let cursors = this.input.keyboard.createCursorKeys();
-tractor.setVelocityX(currentSpeed);
-// Pulo
-if ((cursors.up.isDown || cursors.space.isDown) && tractor.body.touching.down) {
-tractor.setVelocityY(-370);
-playSound('jump');
-}
-// Marcador de Metros
-score = Math.max(0, Math.floor((tractor.x - startX) / 10));
-scoreText.setText('Distância: ' + score + 'm');
-// Multiplicador progressivo de velocidade
-let speedMultiplier = 1 + Math.floor(score / 100) * 0.15;
-currentSpeed = 220 * speedMultiplier;
-levelText.setText('Velocidade: ' + speedMultiplier.toFixed(2) + 'x');
-// Ativa fumaça apenas se estiver tocando o solo
-if (tractor.body.touching.down) {
-smokeParticles.setActive(true);
-} else {
-smokeParticles.setActive(false);
-}
-// Geração infinita de blocos de mapa à frente
-if (tractor.x > nextObstacleX - 800) {
-groundGroup.create(nextObstacleX + 800, 550, 'ground_base').refreshBody();
-this.generateRandomObstacle(nextObstacleX);
-nextObstacleX += Phaser.Math.Between(500, 800);
-}
-// Game over por queda
-if (tractor.y > 650) {
-this.triggerGameOver();
-}
-}
-generateRandomObstacle(x) {
-let type = Phaser.Math.Between(1, 3);
-if (type === 1) {
-obstaclesGroup.create(x, 475, 'rock_base').refreshBody();
-} else if (type === 2) {
-obstaclesGroup.create(x, 470, 'ramp_base').refreshBody();
-} else if (type === 3) {
-obstaclesGroup.create(x, 478, 'river_base').refreshBody();
-}
-let coinCount = Phaser.Math.Between(1, 3);
-for (let i = 0; i < coinCount; i++) {
-let coinY = type === 2 ? 380 : 430;
-let coin = coinsGroup.create(x + (i * 40) - 20, coinY, 'coin_base');
-coin.body.setAllowGravity(false);
-}
-}
-collectCoin(tractor, coin) {
-coin.disableBody(true, true);
-coins += 1;
-totalCoins += 1;
-coinsText.setText('Moedas: ' + coins + ' 🪙');
-playSound('coin');
-}
-hitObstacle(tractor, obstacle) {
-if (tractor.body.touching.right || obstacle.texture.key === 'river_base') {
-this.triggerGameOver();
-}
-}
-triggerGameOver() {
-if (isGameOver) return;
-isGameOver = true;
-tractor.setVelocity(0, 0);
-tractor.setTint(0x555555);
-smokeParticles.stop();
-playSound('gameover');
-let gameOverText = this.add.text(400, 200, 'FIM DE JOGO', { fontSize: '48px', fill: '#ff0000', fontWeight: 'bold' });
-gameOverText.setOrigin(0.5).setScrollFactor(0);
-let statsText = this.add.text(400, 270, Você correu ${score}m e pegou ${coins} moedas nesta partida!, { fontSize: '20px', fill: '#000', fontWeight: 'bold' });
-statsText.setOrigin(0.5).setScrollFactor(0);
-let menuText = this.add.text(400, 350, 'Pressione ESPAÇO ou SETA PARA CIMA para ir ao Menu', { fontSize: '18px', fill: '#333', fontWeight: 'bold' });
-menuText.setOrigin(0.5).setScrollFactor(0);
-const returnToMenu = () => { this.scene.start('MenuScene'); };
-this.input.keyboard.once('keydown-UP', returnToMenu);
-this.input.keyboard.once('keydown-SPACE', returnToMenu);
-}
-}
-const configGame = {
-type: Phaser.AUTO,
-width: 800,
-height: 600,
-backgroundColor: '#87CEEB',
-physics: {
-default: 'arcade',
-arcade: { gravity: { y: 750 }, debug: false }
-},
-scene: [MenuScene, GameScene]
-};
-const runGame = new Phaser.Game(configGame);
+
+            // FUMAÇA
+
+            smokeParticles =
+                this.add.particles(
+                    0,
+                    0,
+                    'smoke_particle',
+                    {
+                        speedX: {
+                            min: -40,
+                            max: -10
+                        },
+
+                        speedY: {
+                            min: -30,
+                            max: -10
+                        },
+
+                        scale: {
+                            start: 1,
+                            end: 2.5
+                        },
+
+                        alpha: {
+                            start: 0.6,
+                            end: 0
+                        },
+
+                        lifespan: 600,
+
+                        frequency: 40
+                    }
+                );
+
+
+            smokeParticles.startFollow(
+                tractor,
+                -10,
+                30
+            );
+
+
+            // COLISÕES
+
+            this.physics.add.collider(
+                tractor,
+                groundGroup
+            );
+
+
+            this.physics.add.collider(
+                tractor,
+                obstaclesGroup,
+                (t, o) => {
+
+                    this.hitObstacle(t, o);
+
+                }
+            );
+
+
+            this.physics.add.overlap(
+                tractor,
+                coinsGroup,
+                (t, c) => {
+
+                    this.collectCoin(t, c);
+
+                }
+            );
+
+
+            // CÂMERA
+
+            this.cameras.main.startFollow(
+                tractor,
+                true,
+                0.05,
+                0.05,
+                -200,
+                100
+            );
+
+
+            // HUD
+
+            scoreText =
+                this.add.text(
+                    20,
+                    20,
+                    'Distância: 0m',
+                    {
+                        fontSize: '22px',
+                        fill: '#000',
+                        fontWeight: 'bold'
+                    }
+                )
+                .setScrollFactor(0);
+
+
+            coinsText =
+                this.add.text(
+                    20,
+                    50,
+                    'Moedas: 0 🪙',
+                    {
+                        fontSize: '22px',
+                        fill: '#d4af37',
+                        fontWeight: 'bold'
+                    }
+                )
+                .setScrollFactor(0);
+
+
+            levelText =
+                this.add.text(
+                    780,
+                    20,
+                    'Velocidade: 1x',
+                    {
+                        fontSize: '18px',
+                        fill: '#005500',
+                        fontWeight: 'bold'
+                    }
+                )
+                .setOrigin(1, 0)
+                .setScrollFactor(0);
+
+        }
+
+
+        update() {
+
+            if (isGameOver) return;
+
+
+            let cursors =
+                this.input.keyboard.createCursorKeys();
+
+
+            tractor.setVelocityX(
+                currentSpeed
+            );
+
+
+            // PULO
+
+            if (
+                (
+                    cursors.up.isDown ||
+                    cursors.space.isDown
+                ) &&
+                tractor.body.touching.down
+            ) {
+
+                tractor.setVelocityY(-370);
+
+                playSound('jump');
+
+            }
+
+
+            // DISTÂNCIA
+
+            score =
+                Math.max(
+                    0,
+                    Math.floor(
+                        (tractor.x - startX) / 10
+                    )
+                );
+
+
+            scoreText.setText(
+                'Distância: ' + score + 'm'
+            );
+
+
+            // VELOCIDADE
+
+            let speedMultiplier =
+                1 +
+                Math.floor(score / 100) *
+                0.15;
+
+
+            currentSpeed =
+                220 * speedMultiplier;
+
+
+            levelText.setText(
+                'Velocidade: ' +
+                speedMultiplier.toFixed(2) +
+                'x'
+            );
+
+
+            // FUMAÇA
+
+            if (
+                tractor.body.touching.down
+            ) {
+
+                smokeParticles.setActive(true);
+
+            }
+
+            else {
+
+                smokeParticles.setActive(false);
+
+            }
+
+
+            // MAPA INFINITO
+
+            if (
+                tractor.x >
+                nextObstacleX - 800
+            ) {
+
+                groundGroup
+                    .create(
+                        nextObstacleX + 800,
+                        550,
+                        'ground_base'
+                    )
+                    .refreshBody();
+
+
+                this.generateRandomObstacle(
+                    nextObstacleX
+                );
+
+
+                nextObstacleX +=
+                    Phaser.Math.Between(
+                        500,
+                        800
+                    );
+
+            }
+
+
+            // QUEDA
+
+            if (tractor.y > 650) {
+
+                this.triggerGameOver();
+
+            }
+
+        }
+
+
+        generateRandomObstacle(x) {
+
+            let type =
+                Phaser.Math.Between(1, 3);
+
+
+            if (type === 1) {
+
+                obstaclesGroup
+                    .create(
+                        x,
+                        475,
+                        'rock_base'
+                    )
+                    .refreshBody();
+
+            }
+
+            else if (type === 2) {
+
+                obstaclesGroup
+                    .create(
+                        x,
+                        470,
+                        'ramp_base'
+                    )
+                    .refreshBody();
+
+            }
+
+            else if (type === 3) {
+
+                obstaclesGroup
+                    .create(
+                        x,
+                        478,
+                        'river_base'
+                    )
+                    .refreshBody();
+
+            }
+
+
+            // MOEDAS
+
+            let coinCount =
+                Phaser.Math.Between(1, 3);
+
+
+            for (
+                let i = 0;
+                i < coinCount;
+                i++
+            ) {
+
+                let coinY =
+                    type === 2
+                        ? 380
+                        : 430;
+
+
+                let coin =
+                    coinsGroup.create(
+                        x + (i * 40) - 20,
+                        coinY,
+                        'coin_base'
+                    );
+
+
+                coin.body.setAllowGravity(
+                    false
+                );
+
+            }
+
+        }
+
+
+        collectCoin(tractor, coin) {
+
+            coin.disableBody(
+                true,
+                true
+            );
+
+
+            coins += 1;
+
+            totalCoins += 1;
+
+
+            coinsText.setText(
+                'Moedas: ' +
+                coins +
+                ' 🪙'
+            );
+
+
+            playSound('coin');
+
+        }
+
+
+        hitObstacle(tractor, obstacle) {
+
+            if (
+                tractor.body.touching.right ||
+                obstacle.texture.key === 'river_base'
+            ) {
+
+                this.triggerGameOver();
+
+            }
+
+        }
+
+
+        triggerGameOver() {
+
+            if (isGameOver) return;
+
+
+            isGameOver = true;
+
+
+            tractor.setVelocity(0, 0);
+
+            tractor.setTint(0x555555);
+
+
+            smokeParticles.stop();
+
+
+            playSound('gameover');
+
+
+            // FIM DE JOGO
+
+            let gameOverText =
+                this.add.text(
+                    400,
+                    200,
+                    'FIM DE JOGO',
+                    {
+                        fontSize: '48px',
+                        fill: '#ff0000',
+                        fontWeight: 'bold'
+                    }
+                );
+
+
+            gameOverText
+                .setOrigin(0.5)
+                .setScrollFactor(0);
+
+
+            let statsText =
+                this.add.text(
+                    400,
+                    270,
+                    `Você correu ${score}m e pegou ${coins} moedas nesta partida!`,
+                    {
+                        fontSize: '20px',
+                        fill: '#000',
+                        fontWeight: 'bold'
+                    }
+                );
+
+
+            statsText
+                .setOrigin(0.5)
+                .setScrollFactor(0);
+
+
+            let menuText =
+                this.add.text(
+                    400,
+                    350,
+                    'Pressione ESPAÇO ou SETA PARA CIMA para ir ao Menu',
+                    {
+                        fontSize: '18px',
+                        fill: '#333',
+                        fontWeight: 'bold'
+                    }
+                );
+
+
+            menuText
+                .setOrigin(0.5)
+                .setScrollFactor(0);
+
+
+            const returnToMenu =
+                () => {
+
+                    this.scene.start(
+                        'MenuScene'
+                    );
+
+                };
+
+
+            this.input.keyboard.once(
+                'keydown-UP',
+                returnToMenu
+            );
+
+
+            this.input.keyboard.once(
+                'keydown-SPACE',
+                returnToMenu
+            );
+
+        }
+
+    }
+
+
+    // =========================================================
+    // CONFIGURAÇÃO DO PHASER
+    // =========================================================
+
+    const configGame = {
+
+        type: Phaser.AUTO,
+
+        width: 800,
+
+        height: 600,
+
+        backgroundColor: '#87CEEB',
+
+        physics: {
+
+            default: 'arcade',
+
+            arcade: {
+
+                gravity: {
+                    y: 750
+                },
+
+                debug: false
+
+            }
+
+        },
+
+        scene: [
+            MenuScene,
+            GameScene
+        ]
+
+    };
+
+
+    // INICIAR JOGO
+
+    const runGame =
+        new Phaser.Game(configGame);
+
+</script>
+
+</body>
+    </html>
