@@ -167,3 +167,202 @@ class ShopScene extends Phaser.Scene {
     if (selectedVehicle === v.id) {
      this.add.text(x - 50, y + 22, "Equipado", { fontSize: "14px", color: "#4caf50", fontStyle: "bold" });
     } else {
+button(this, x, y + 30, "EQUIPAR", () => { selectedVehicle = v.id; saveData(); this.scene.restart(); }, { size: "12px", bg: "#1976d2", pad: 8 });
+}
+} else {
+button(this, x, y + 30, COMPRAR 💰${v.price}, () => {
+if (totalCoins >= v.price) { totalCoins -= v.price; unlocked[v.id] = true; selectedVehicle = v.id; sound("buy"); saveData(); this.scene.restart(); } else { alert("Moedas insuficientes!"); }
+}, { size: "12px", bg: "#d32f2f", pad: 8 });
+}
+});
+button(this, 400, 560, "⬅ VOLTAR AO MENU", () => this.scene.start("MenuScene"), { bg: "#555", size: "16px" });
+}
+}
+class GameScene extends Phaser.Scene {
+constructor() { super("GameScene"); }
+create() {
+score = 0; coins = 0; lives = 3; gameSpeed = 230; gameOver = false; paused = false; jumpsUsed = 0;
+lastGroundX = 0; lastGroundY = 460; lastObstacleX = 600; lastOverheadX = 1200; currentBiome = -1;
+sceneryGroup = [];
+this.cameras.main.setBackgroundColor("#78c9f2");
+groundPieces = this.physics.add.group();
+obstacles = this.physics.add.group();
+overheadObstacles = this.physics.add.group();
+coinsGroup = this.physics.add.group();
+for (let i = 0; i < 10; i++) { this.spawnGround(); }
+let vInfo = VEHICLES.find(v => v.id === selectedVehicle) || VEHICLES[0];
+tractor = this.physics.add.sprite(220, 300, "vehicle_" + vInfo.id);
+tractor.setGravityY(1100).setBodySize(110, 85).setOffset(25, 15).setDepth(2);
+trailer = this.physics.add.sprite(110, 300, "trailer");
+trailer.setGravityY(1100).setBodySize(95, 60).setOffset(10, 10).setDepth(1);
+this.physics.add.collider(tractor, groundPieces, () => { if (!gameOver) jumpsUsed = 0; });
+this.physics.add.collider(trailer, groundPieces);
+this.physics.add.collider(obstacles, groundPieces);
+this.physics.add.overlap(tractor, coinsGroup, this.collectCoin, null, this);
+this.physics.add.overlap(trailer, coinsGroup, this.collectCoin, null, this);
+this.physics.add.overlap(tractor, obstacles, this.hitObstacle, null, this);
+this.physics.add.overlap(tractor, overheadObstacles, this.hitObstacle, null, this);
+scoreText = this.add.text(20, 20, "Distância: 0 m", { fontSize: "20px", color: "#000", fontStyle: "bold" });
+coinsText = this.add.text(20, 50, "Moedas: 0", { fontSize: "20px", color: "#d8a83e", fontStyle: "bold" });
+livesText = this.add.text(20, 80, "❤️ Vidas: 3", { fontSize: "20px", color: "#b8332c", fontStyle: "bold" });
+speedText = this.add.text(20, 110, "Velocidade: 100%", { fontSize: "15px", color: "#555", fontStyle: "bold" });
+biomeText = this.add.text(400, 25, "Bioma: Fazenda Padrão", { fontSize: "18px", color: "#fff", fontStyle: "bold", backgroundColor: "#00000055", padding: 5 }).setOrigin(0.5);
+let bSize = jumpButtonSize;
+jumpButton = this.add.rectangle(710, 510, 120 * bSize, 120 * bSize, 0xffffff, 0.4).setInteractive({ useHandCursor: true }).on("pointerdown", () => this.handleJump());
+this.add.text(710, 510, "PULAR", { fontSize: Math.round(16 * bSize) + "px", fontStyle: "bold", color: "#000" }).setOrigin(0.5);
+pauseBtn = button(this, 750, 35, "⏸", () => this.togglePause(), { bg: "#607d8b", pad: 10 });
+this.input.keyboard.on("keydown-SPACE", () => this.handleJump());
+this.input.keyboard.on("keydown-UP", () => this.handleJump());
+pauseLayer = this.add.container(0, 0).setVisible(false).setDepth(10);
+let bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.6).setInteractive();
+let pText = this.add.text(400, 220, "JOGO PAUSADO", { fontSize: "34px", fontStyle: "bold", color: "#fff" }).setOrigin(0.5);
+let btnResume = button(this, 400, 300, "CONTINUAR", () => this.togglePause(), { size: "20px" });
+let btnMenu = button(this, 400, 370, "MENU PRINCIPAL", () => { this.togglePause(); this.scene.start("MenuScene"); }, { size: "18px", bg: "#555" });
+pauseLayer.add([bg, pText, btnResume, btnMenu]);
+}
+update(time, delta) {
+if (gameOver || paused) return;
+score += (delta / 1000) * (gameSpeed / 150);
+scoreText.setText("Distância: " + Math.floor(score) + " m");
+if (Math.floor(score) % 150 === 0 && Math.floor(score) > 0) {
+gameSpeed = Math.min(500, 230 + Math.floor(score / 150) * 15);
+speedText.setText("Velocidade: " + Math.round((gameSpeed / 230) * 100) + "%");
+}
+let biomeId = Math.floor(score / 300) % 4;
+if (biomeId !== currentBiome) { currentBiome = biomeId; this.changeBiome(currentBiome); }
+let tDist = tractor.x - 110 - trailer.x;
+trailer.setVelocityX(tDist * 5);
+if (Math.abs(tractor.y - trailer.y) > 80 && tractor.body.touching.down) {
+trailer.y = tractor.y;
+}
+groundPieces.children.each(g => {
+g.x -= (gameSpeed * delta) / 1000;
+g.body.updateFromGameObject();
+if (g.x < -100) { groundPieces.remove(g, true, true); }
+});
+if (lastGroundX < 900) { this.spawnGround(); }
+sceneryGroup.forEach((s, idx) => {
+s.x -= (gameSpeed * 0.4 * delta) / 1000;
+if (s.x < -200) { s.destroy(); sceneryGroup.splice(idx, 1); }
+});
+if (Phaser.Math.Between(0, 100) < 2) { this.spawnScenery(); }
+obstacles.children.each(o => {
+o.x -= (gameSpeed * delta) / 1000;
+if (o.x < -150) { obstacles.remove(o, true, true); }
+});
+overheadObstacles.children.each(o => {
+o.x -= (gameSpeed * delta) / 1000;
+if (o.x < -100) { overheadObstacles.remove(o, true, true); }
+});
+coinsGroup.children.each(c => {
+c.x -= (gameSpeed * delta) / 1000;
+if (c.x < -100) { coinsGroup.remove(c, true, true); }
+});
+if (time > lastObstacleX) {
+this.spawnObstacle();
+lastObstacleX = time + Phaser.Math.Between(1500, 3000) - (gameSpeed * 1.2);
+}
+if (time > lastOverheadX && currentBiome === 1) {
+this.spawnOverheadObstacle();
+lastOverheadX = time + Phaser.Math.Between(2500, 4500);
+}
+if (tractor.y > 650 || trailer.y > 650) { this.triggerGameOver(); }
+}
+handleJump() {
+if (gameOver || paused) return;
+if (jumpsUsed < MAX_JUMPS) { tractor.setVelocityY(-430); jumpsUsed++; sound("jump"); }
+}
+togglePause() {
+if (gameOver) return;
+paused = !paused;
+if (paused) { this.physics.pause(); pauseLayer.setVisible(true); }
+else { this.physics.resume(); pauseLayer.setVisible(false); }
+}
+changeBiome(id) {
+let names = ["Fazenda Padrão", "Floresta de Árvores", "Plantação de Milho", "Cercados e Celeiros"];
+let colors = ["#78c9f2", "#5c9bc0", "#4fa885", "#70b560"];
+biomeText.setText("Bioma: " + names[id]);
+this.cameras.main.setBackgroundColor(colors[id]);
+}
+spawnGround() {
+let nextY = lastGroundY;
+if (Phaser.Math.Between(0, 10) < 4) {
+let change = Phaser.Math.Between(-25, 25);
+nextY = Phaser.Math.Clamp(lastGroundY + change, 400, 530);
+}
+let g = groundPieces.create(lastGroundX + 60, nextY + 60, "ground");
+g.body.setAllowGravity(false).setImmovable(true);
+lastGroundX = g.x + 60;
+lastGroundY = nextY;
+}
+spawnScenery() {
+let types = ["tree", "barn", "crop", "fence"];
+let weights =;
+if (currentBiome === 0) weights =;
+if (currentBiome === 1) weights =;
+if (currentBiome === 2) weights =;
+if (currentBiome === 3) weights =;
+let type = types[Phaser.Math.RND.pick(weights)];
+let asset = this.add.image(850, lastGroundY + 15, type).setOrigin(0.5, 1).setDepth(-1);
+sceneryGroup.push(asset);
+}
+spawnObstacle() {
+let obsTypes = ["rock", "hay", "bighay"];
+let type = Phaser.Math.RND.pick(obsTypes);
+let hOffset = type === "bighay" ? 45 : 25;
+let obs = obstacles.create(850, lastGroundY + 15 - hOffset, type);
+if (obs) {
+obs.body.setAllowGravity(false).setImmovable(true);
+obs.typeKey = type;
+if (Phaser.Math.Between(0, 10) < 6) { this.spawnCoinsAbove(850, lastGroundY - 80); }
+}
+}
+spawnOverheadObstacle() {
+let obs = overheadObstacles.create(850, Phaser.Math.Between(220, 300), "branch");
+if (obs) { obs.body.setAllowGravity(false).setImmovable(true); }
+}
+spawnCoinsAbove(x, y) {
+let count = Phaser.Math.Between(2, 4);
+for (let i = 0; i < count; i++) {
+let c = coinsGroup.create(x + (i * 35), y, "coin");
+c.body.setAllowGravity(false);
+}
+}
+collectCoin(v, coin) {
+coinsGroup.remove(coin, true, true); coins++; totalCoins++; sound("coin");
+coinsText.setText("Moedas: " + coins); saveData();
+}
+hitObstacle(player, obstacle) {
+if (obstacle.typeKey === "bighay") {
+obstacles.remove(obstacle, true, true);
+sound("break");
+score += 10;
+this.cameras.main.shake(150, 0.01);
+return;
+}
+if (obstacle.hasHit) return;
+obstacle.hasHit = true;
+lives--; sound("hit"); livesText.setText("❤️ Vidas: " + lives);
+this.cameras.main.flash(200, 200, 50, 50);
+obstacles.remove(obstacle, true, true);
+if (lives <= 0) { this.triggerGameOver(); }
+}
+triggerGameOver() {
+gameOver = true; this.physics.pause();
+if (score > highScore) { highScore = Math.floor(score); saveData(); }
+this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7).setDepth(9);
+this.add.text(400, 180, "FIM DE JOGO!", { fontSize: "42px", fontStyle: "bold", color: "#ff3333" }).setOrigin(0.5).setDepth(9);
+this.add.text(400, 250, Pontuação: ${Math.floor(score)} m, { fontSize: "24px", color: "#fff" }).setOrigin(0.5).setDepth(9);
+this.add.text(400, 290, Moedas coletadas: +${coins}, { fontSize: "20px", color: "#ffd700" }).setOrigin(0.5).setDepth(9);
+button(this, 400, 390, "🔄 JOGAR DE NOVO", () => this.scene.restart(), { size: "20px" }).setDepth(9);
+button(this, 400, 455, "🏠 MENU PRINCIPAL", () => this.scene.start("MenuScene"), { size: "16px", bg: "#555" }).setDepth(9);
+}
+}
+const config = {
+type: Phaser.AUTO,
+width: 800,
+height: 600,
+physics: { default: "arcade", arcade: { gravity: { y: 0 }, debug: false } },
+scene: [MenuScene, GameScene, ShopScene]
+};
+const game = new Phaser.Game(config);
