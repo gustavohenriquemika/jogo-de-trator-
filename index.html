@@ -3,1659 +3,218 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
 <title>Jogo do Trator Infinito</title>
-
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
-
 <style>
-html,body{
-    margin:0;
-    padding:0;
-    width:100%;
-    height:100%;
-    overflow:hidden;
-    background:#111;
-    touch-action:none;
-}
-
-canvas{
-    display:block;
-    margin:auto;
-}
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#111;touch-action:none}
+canvas{display:block;margin:auto}
 </style>
 </head>
-
 <body>
-
 <script>
-
-/* =========================================================
-   DADOS
-========================================================= */
-
-let totalCoins = Number(localStorage.getItem("tratorCoins") || 0);
-let highScore = Number(localStorage.getItem("tratorRecord") || 0);
-
-let selectedTractor =
-    localStorage.getItem("tratorSelecionado") || "green";
-
-let unlocked = JSON.parse(
-    localStorage.getItem("tratoresLiberados") ||
-    '{"green":true,"red":false,"blue":false,"yellow":false}'
-);
-
-let tractor;
-let groundPieces;
-let obstacles;
-let coinsGroup;
-
-let score = 0;
-let coins = 0;
-let lives = 3;
-
-let gameSpeed = 230;
-
-let scoreText;
-let coinsText;
-let livesText;
-let speedText;
-
-let gameOver = false;
-
-/* PULO DUPLO */
-let jumpsUsed = 0;
-const MAX_JUMPS = 2;
-
-/* CONTROLE DOS OBSTÁCULOS */
-let lastObstacleX = 0;
-let lastGroundX = 0;
-
-/* Distância dos obstáculos */
-const MIN_OBSTACLE_DISTANCE = 750;
-const MAX_OBSTACLE_DISTANCE = 1050;
-
-let rain = false;
-let rainParticles;
-
-let audioCtx = null;
-
-
-/* =========================================================
-   CORES
-========================================================= */
-
-const tractorColors = {
-    green: 0x2e8b3c,
-    red: 0xd62828,
-    blue: 0x1976d2,
-    yellow: 0xf5b700
-};
-
-
-/* =========================================================
-   SOM
-========================================================= */
-
-function startAudio(){
-
-    try{
-
-        if(!audioCtx){
-
-            audioCtx = new (
-                window.AudioContext ||
-                window.webkitAudioContext
-            )();
-        }
-
-        if(audioCtx.state === "suspended"){
-            audioCtx.resume();
-        }
-
-    }catch(e){}
-}
-
-
-function sound(type){
-
-    try{
-
-        startAudio();
-
-        let osc = audioCtx.createOscillator();
-        let gain = audioCtx.createGain();
-
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        let frequency = 300;
-
-        if(type === "coin") frequency = 800;
-        if(type === "jump") frequency = 420;
-        if(type === "hit") frequency = 100;
-        if(type === "buy") frequency = 650;
-
-        osc.frequency.value = frequency;
-        osc.type = "square";
-
-        gain.gain.setValueAtTime(
-            0.08,
-            audioCtx.currentTime
-        );
-
-        gain.gain.exponentialRampToValueAtTime(
-            0.001,
-            audioCtx.currentTime + 0.15
-        );
-
-        osc.start();
-
-        osc.stop(
-            audioCtx.currentTime + 0.15
-        );
-
-    }catch(e){}
-}
-
-
-/* =========================================================
-   SALVAR
-========================================================= */
+const VEHICLES = [
+ {id:"green",name:"Trator Verde",kind:"tractor",color:0x2e8b3c,price:0},
+ {id:"red",name:"Trator Vermelho",kind:"tractor",color:0xd62828,price:50},
+ {id:"blue",name:"Trator Azul",kind:"tractor",color:0x1976d2,price:100},
+ {id:"yellow",name:"Trator Amarelo",kind:"tractor",color:0xf5b700,price:150},
+ {id:"orange",name:"Trator Laranja",kind:"tractor",color:0xf07818,price:200},
+ {id:"purple",name:"Trator Roxo",kind:"tractor",color:0x8e44ad,price:250},
+ {id:"motoRed",name:"Moto Cross Vermelha",kind:"moto",color:0xe53935,price:300},
+ {id:"motoBlue",name:"Moto Cross Azul",kind:"moto",color:0x2196f3,price:350},
+ {id:"motoGreen",name:"Moto Cross Verde",kind:"moto",color:0x43a047,price:400},
+ {id:"motoYellow",name:"Moto Cross Amarela",kind:"moto",color:0xffc107,price:450},
+ {id:"motoBlack",name:"Moto Cross Preta",kind:"moto",color:0x303030,price:500},
+ {id:"motoPurple",name:"Moto Cross Roxa",kind:"moto",color:0x9c27b0,price:550}
+];
+let totalCoins=Number(localStorage.getItem("tratorCoins")||0);
+let highScore=Number(localStorage.getItem("tratorRecord")||0);
+let selectedVehicle=localStorage.getItem("vehicleSelected")||"green";
+let jumpButtonSize=Number(localStorage.getItem("tratorJumpSize")||1);
+let unlocked=JSON.parse(localStorage.getItem("vehiclesUnlocked")||'{"green":true}');
+VEHICLES.forEach(v=>{if(v.price===0)unlocked[v.id]=true;});
+let tractor,groundPieces,obstacles,overheadObstacles,coinsGroup;
+let score=0,coins=0,lives=3,gameSpeed=230,gameOver=false,paused=false,jumpsUsed=0;
+let lastGroundX=0,lastObstacleX=0,lastOverheadX=1200,currentBiome=-1;
+let scoreText,coinsText,livesText,speedText,jumpButton,biomeText,pauseLayer;
+let audioCtx=null, scenery=[];
+const MAX_JUMPS=2;
 
 function saveData(){
-
-    localStorage.setItem(
-        "tratorCoins",
-        totalCoins
-    );
-
-    localStorage.setItem(
-        "tratorRecord",
-        highScore
-    );
-
-    localStorage.setItem(
-        "tratoresLiberados",
-        JSON.stringify(unlocked)
-    );
-
-    localStorage.setItem(
-        "tratorSelecionado",
-        selectedTractor
-    );
+ localStorage.setItem("tratorCoins",totalCoins);
+ localStorage.setItem("tratorRecord",highScore);
+ localStorage.setItem("vehicleSelected",selectedVehicle);
+ localStorage.setItem("vehiclesUnlocked",JSON.stringify(unlocked));
+ localStorage.setItem("tratorJumpSize",jumpButtonSize);
 }
-
-
-/* =========================================================
-   TEXTURAS
-========================================================= */
-
+function startAudio(){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==="suspended")audioCtx.resume();}catch(e){}}
+function sound(type){try{startAudio();let o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.value=({coin:800,jump:420,hit:100,buy:650}[type]||300);o.type="square";g.gain.setValueAtTime(.06,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.13);o.start();o.stop(audioCtx.currentTime+.13);}catch(e){}}
+function drawTexture(scene,key,w,h,fn){let g=scene.make.graphics({x:0,y:0,add:false});fn(g);g.generateTexture(key,w,h);g.destroy();}
 function createTextures(scene){
-
-    /* TRATOR */
-
-    let g = scene.make.graphics({
-        x:0,
-        y:0,
-        add:false
-    });
-
-    let color = tractorColors[selectedTractor];
-
-    g.fillStyle(color);
-    g.fillRoundedRect(22,25,105,48,8);
-
-    g.fillStyle(color);
-    g.fillRoundedRect(82,12,55,38,7);
-
-    g.fillStyle(0x333333);
-    g.fillRect(38,0,55,42);
-
-    g.fillStyle(0x9ddcff);
-    g.fillRect(45,6,41,29);
-
-    g.fillStyle(0x444444);
-    g.fillRect(126,42,22,8);
-
-    g.fillStyle(0xffff99);
-    g.fillCircle(130,24,6);
-
-    g.fillStyle(0x171717);
-    g.fillCircle(35,78,27);
-
-    g.fillStyle(0x777777);
-    g.fillCircle(35,78,13);
-
-    g.fillStyle(0x171717);
-    g.fillCircle(116,76,18);
-
-    g.fillStyle(0x777777);
-    g.fillCircle(116,76,9);
-
-    g.fillStyle(0x555555);
-    g.fillRect(105,0,7,25);
-
-    g.generateTexture(
-        "tractor",
-        150,
-        110
-    );
-
-    g.destroy();
-
-
-    /* CHÃO */
-
-    g = scene.make.graphics({
-        x:0,
-        y:0,
-        add:false
-    });
-
-    g.fillStyle(0x7a4a25);
-    g.fillRect(0,0,500,70);
-
-    g.fillStyle(0x3d8b32);
-    g.fillRect(0,0,500,12);
-
-    g.fillStyle(0x65a93d);
-
-    for(let i=0;i<20;i++){
-
-        g.fillRect(
-            Phaser.Math.Between(0,490),
-            Phaser.Math.Between(15,60),
-            3,
-            8
-        );
-    }
-
-    g.generateTexture(
-        "ground",
-        500,
-        70
-    );
-
-    g.destroy();
-
-
-    /* PEDRA */
-
-    g = scene.make.graphics({
-        x:0,
-        y:0,
-        add:false
-    });
-
-    g.fillStyle(0x777777);
-    g.fillCircle(35,35,32);
-
-    g.fillStyle(0x999999);
-    g.fillCircle(24,22,9);
-
-    g.generateTexture(
-        "rock",
-        70,
-        70
-    );
-
-    g.destroy();
-
-
-    /* RAMPA */
-
-    g = scene.make.graphics({
-        x:0,
-        y:0,
-        add:false
-    });
-
-    g.fillStyle(0x704214);
-
-    g.beginPath();
-    g.moveTo(0,60);
-    g.lineTo(120,60);
-    g.lineTo(120,0);
-    g.closePath();
-    g.fillPath();
-
-    g.fillStyle(0x3e8f35);
-    g.fillRect(0,54,120,7);
-
-    g.generateTexture(
-        "ramp",
-        120,
-        65
-    );
-
-    g.destroy();
-
-
-    /* ÁGUA */
-
-    g = scene.make.graphics({
-        x:0,
-        y:0,
-        add:false
-    });
-
-    g.fillStyle(0x2879c7);
-    g.fillRect(0,0,130,45);
-
-    g.lineStyle(3,0x7ddfff);
-
-    for(let i=0;i<4;i++){
-
-        g.beginPath();
-        g.moveTo(5,8+i*10);
-        g.lineTo(120,8+i*10);
-        g.strokePath();
-    }
-
-    g.generateTexture(
-        "water",
-        130,
-        45
-    );
-
-    g.destroy();
-
-
-    /* MOEDA */
-
-    g = scene.make.graphics({
-        x:0,
-        y:0,
-        add:false
-    });
-
-    g.fillStyle(0xffd700);
-    g.fillCircle(15,15,13);
-
-    g.lineStyle(3,0xfff59d);
-    g.strokeCircle(15,15,9);
-
-    g.generateTexture(
-        "coin",
-        30,
-        30
-    );
-
-    g.destroy();
+ VEHICLES.forEach(v=>drawTexture(scene,"vehicle_"+v.id,160,115,g=>{
+  if(v.kind==="tractor"){
+   g.fillStyle(v.color);g.fillRoundedRect(25,30,102,42,7);g.fillRoundedRect(83,14,52,35,6);
+   g.fillStyle(0x333333);g.fillRect(43,2,48,40);g.fillStyle(0x9ddcff);g.fillRect(49,8,36,27);
+   g.fillStyle(0xffffa0);g.fillCircle(139,35,6);g.fillStyle(0x555555);g.fillRect(110,0,8,25);
+   g.fillStyle(0x171717);g.fillCircle(39,80,27);g.fillCircle(119,78,19);
+   g.fillStyle(0x888888);g.fillCircle(39,80,13);g.fillCircle(119,78,9);
+  }else{
+   g.lineStyle(7,0x252525);g.strokeCircle(35,83,24);g.strokeCircle(122,83,24);
+   g.fillStyle(0x777777);g.fillCircle(35,83,10);g.fillCircle(122,83,10);
+   g.lineStyle(7,v.color);g.lineBetween(35,83,66,49);g.lineBetween(66,49,91,82);g.lineBetween(91,82,35,83);
+   g.lineBetween(66,49,105,47);g.lineBetween(105,47,122,83);g.lineBetween(66,49,57,29);
+   g.lineStyle(5,0x222222);g.lineBetween(48,27,72,27);g.lineBetween(105,47,124,37);
+   g.fillStyle(v.color);g.fillRoundedRect(58,31,43,19,5);g.fillRoundedRect(80,23,21,11,4);
+   g.fillStyle(0x222222);g.fillCircle(71,17,10);g.fillStyle(0xeeeeee);g.fillCircle(71,17,5);
+   g.fillStyle(0xfff3a0);g.fillCircle(132,39,5);
+  }
+ }));
+ drawTexture(scene,"ground",500,70,g=>{g.fillStyle(0x80502b);g.fillRect(0,0,500,70);g.fillStyle(0x3d8b32);g.fillRect(0,0,500,12);g.fillStyle(0x70ad45);for(let i=0;i<35;i++)g.fillRect(Phaser.Math.Between(0,495),Phaser.Math.Between(15,60),3,7);});
+ drawTexture(scene,"rock",70,70,g=>{g.fillStyle(0x777777);g.fillCircle(35,35,32);g.fillStyle(0x999999);g.fillCircle(24,22,9);});
+ drawTexture(scene,"hay",64,48,g=>{g.fillStyle(0xd8a83e);g.fillRoundedRect(2,4,60,42,8);g.lineStyle(3,0x9a6c25);g.strokeRoundedRect(2,4,60,42,8);});
+ drawTexture(scene,"branch",110,28,g=>{g.lineStyle(13,0x6d4527);g.lineBetween(5,14,105,14);g.lineStyle(7,0x4d7e2a);g.lineBetween(32,12,20,2);g.lineBetween(65,13,80,1);});
+ drawTexture(scene,"coin",30,30,g=>{g.fillStyle(0xffd700);g.fillCircle(15,15,13);g.lineStyle(3,0xfff59d);g.strokeCircle(15,15,9);});
+ drawTexture(scene,"fence",100,55,g=>{g.fillStyle(0xe6d2a4);g.fillRect(5,8,8,44);g.fillRect(87,8,8,44);g.fillRect(5,15,90,7);g.fillRect(5,35,90,7);});
+ drawTexture(scene,"tree",80,120,g=>{g.fillStyle(0x79502b);g.fillRect(32,55,17,65);g.fillStyle(0x2f873c);g.fillCircle(40,40,34);g.fillStyle(0x459d45);g.fillCircle(25,50,20);g.fillCircle(55,52,20);});
+ drawTexture(scene,"barn",150,120,g=>{g.fillStyle(0xb8332c);g.fillRect(15,45,120,75);g.fillStyle(0x7c211c);g.fillPoints([{x:5,y:48},{x:75,y:2},{x:145,y:48}],true);g.fillStyle(0xf0e4cc);g.fillRect(53,65,44,55);});
+ drawTexture(scene,"crop",45,90,g=>{g.lineStyle(5,0x3c7d2b);g.lineBetween(22,90,22,20);g.fillStyle(0x3d963a);g.fillEllipse(12,38,24,12);g.fillEllipse(31,52,24,12);g.fillEllipse(12,65,24,12);});
 }
-
-
-/* =========================================================
-   MENU
-========================================================= */
-
+function button(scene,x,y,label,fn,style={}){let t=scene.add.text(x,y,label,{fontSize:style.size||"22px",fontStyle:"bold",backgroundColor:style.bg||"#249b45",padding:{left:style.pad||15,right:style.pad||15,top:9,bottom:9},color:"#fff",align:"center"}).setOrigin(.5).setInteractive({useHandCursor:true});t.on("pointerdown",fn);return t;}
 class MenuScene extends Phaser.Scene{
-
-    constructor(){
-        super("MenuScene");
-    }
-
-    create(){
-
-        createTextures(this);
-
-        this.cameras.main.setBackgroundColor(
-            "#79c8f2"
-        );
-
-        this.add.rectangle(
-            400,
-            470,
-            800,
-            260,
-            0x6aaa3a
-        );
-
-        this.add.circle(
-            690,
-            90,
-            50,
-            0xffdd55
-        );
-
-        this.add.text(
-            400,
-            80,
-            "🚜 JOGO DO TRATOR INFINITO",
-            {
-                fontSize:"34px",
-                fontStyle:"bold",
-                color:"#ffffff",
-                stroke:"#333333",
-                strokeThickness:6
-            }
-        ).setOrigin(0.5);
-
-        let preview =
-            this.add.image(
-                400,
-                230,
-                "tractor"
-            );
-
-        preview.setScale(1.35);
-
-        this.add.text(
-            400,
-            330,
-            "💰 " + totalCoins + " moedas",
-            {
-                fontSize:"25px",
-                color:"#fff",
-                fontStyle:"bold"
-            }
-        ).setOrigin(0.5);
-
-        let play =
-            this.add.text(
-                400,
-                395,
-                "▶ JOGAR",
-                {
-                    fontSize:"32px",
-                    backgroundColor:"#249b45",
-                    padding:{
-                        left:35,
-                        right:35,
-                        top:12,
-                        bottom:12
-                    },
-                    color:"#ffffff"
-                }
-            ).setOrigin(0.5);
-
-        play.setInteractive({
-            useHandCursor:true
-        });
-
-        play.on(
-            "pointerdown",
-            ()=>{
-                startAudio();
-                this.scene.start("GameScene");
-            }
-        );
-
-        let shop =
-            this.add.text(
-                400,
-                475,
-                "🛒 LOJA DE TRATORES",
-                {
-                    fontSize:"23px",
-                    backgroundColor:"#8b5a2b",
-                    padding:12,
-                    color:"#ffffff"
-                }
-            ).setOrigin(0.5);
-
-        shop.setInteractive({
-            useHandCursor:true
-        });
-
-        shop.on(
-            "pointerdown",
-            ()=>{
-                this.scene.start("ShopScene");
-            }
-        );
-
-        this.add.text(
-            400,
-            550,
-            "Recorde: " +
-            highScore +
-            " metros\n" +
-            "↑ / ESPAÇO = pular • Toque = pular",
-            {
-                fontSize:"16px",
-                align:"center",
-                color:"#ffffff"
-            }
-        ).setOrigin(0.5);
-    }
+ constructor(){super("MenuScene")}
+ create(){
+  createTextures(this);this.cameras.main.setBackgroundColor("#78c9f2");this.add.rectangle(400,470,800,260,0x69a83b);this.add.circle(690,82,43,0xffdf4d);
+  this.add.text(400,50,"🚜 JOGO DO TRATOR INFINITO",{fontSize:"29px",fontStyle:"bold",color:"#fff",stroke:"#333",strokeThickness:5}).setOrigin(.5);
+  this.add.image(400,155,"vehicle_"+selectedVehicle).setScale(.9);
+  this.add.text(400,230,"Veículo atual: "+(VEHICLES.find(v=>v.id===selectedVehicle)?.name||"Trator Verde"),{fontSize:"18px",color:"#fff",fontStyle:"bold"}).setOrigin(.5);
+  this.add.text(400,263,"💰 "+totalCoins+" moedas",{fontSize:"21px",color:"#fff",fontStyle:"bold"}).setOrigin(.5);
+  button(this,400,315,"▶ JOGAR",()=>{startAudio();this.scene.start("GameScene")},{size:"26px"});
+  button(this,400,372,"🚜 GARAGEM: TRATORES E MOTOS",()=>this.scene.start("ShopScene"),{size:"18px",bg:"#80512b"});
+  this.add.text(400,425,"Tamanho do botão de pulo",{fontSize:"18px",color:"#fff",fontStyle:"bold"}).setOrigin(.5);
+  button(this,285,465,"−",()=>{jumpButtonSize=Math.max(.65,Math.round((jumpButtonSize-.15)*100)/100);saveData();this.scene.restart()},{bg:"#455a64",pad:18});
+  this.add.text(400,465,Math.round(jumpButtonSize*100)+"%",{fontSize:"21px",color:"#fff",fontStyle:"bold"}).setOrigin(.5);
+  button(this,515,465,"+",()=>{jumpButtonSize=Math.min(1.6,Math.round((jumpButtonSize+.15)*100)/100);saveData();this.scene.restart()},{bg:"#455a64",pad:18});
+  this.add.text(400,545,"Recorde: "+highScore+" m  •  ↑ / ESPAÇO ou botão para pular",{fontSize:"14px",color:"#fff"}).setOrigin(.5);
+ }
 }
-
-
-/* =========================================================
-   LOJA
-========================================================= */
-
 class ShopScene extends Phaser.Scene{
-
-    constructor(){
-        super("ShopScene");
-    }
-
-    create(){
-
-        createTextures(this);
-
-        this.cameras.main.setBackgroundColor(
-            "#263238"
-        );
-
-        this.add.text(
-            400,
-            55,
-            "🛒 LOJA DE TRATORES",
-            {
-                fontSize:"32px",
-                color:"#ffffff",
-                fontStyle:"bold"
-            }
-        ).setOrigin(0.5);
-
-        this.add.text(
-            400,
-            105,
-            "💰 " + totalCoins,
-            {
-                fontSize:"24px",
-                color:"#ffd700"
-            }
-        ).setOrigin(0.5);
-
-        const types = [
-
-            {
-                id:"green",
-                name:"Verde",
-                price:0
-            },
-
-            {
-                id:"red",
-                name:"Vermelho",
-                price:50
-            },
-
-            {
-                id:"blue",
-                name:"Azul",
-                price:100
-            },
-
-            {
-                id:"yellow",
-                name:"Amarelo",
-                price:200
-            }
-        ];
-
-        types.forEach(
-            (item,index)=>{
-
-                let x =
-                    120 +
-                    index * 190;
-
-                this.add.rectangle(
-                    x,
-                    280,
-                    160,
-                    250,
-                    0x37474f
-                );
-
-                let preview =
-                    this.add.image(
-                        x,
-                        205,
-                        "tractor"
-                    );
-
-                preview.setScale(0.75);
-
-                this.add.text(
-                    x,
-                    325,
-                    item.name,
-                    {
-                        fontSize:"21px",
-                        color:"#ffffff"
-                    }
-                ).setOrigin(0.5);
-
-                let text;
-
-                if(unlocked[item.id]){
-
-                    text =
-                        selectedTractor === item.id
-                        ? "✓ USANDO"
-                        : "USAR";
-
-                }else{
-
-                    text =
-                        "💰 " +
-                        item.price;
-                }
-
-                let button =
-                    this.add.text(
-                        x,
-                        380,
-                        text,
-                        {
-                            fontSize:"17px",
-                            backgroundColor:
-                                selectedTractor === item.id
-                                ? "#388e3c"
-                                : "#546e7a",
-                            padding:9,
-                            color:"#ffffff"
-                        }
-                    ).setOrigin(0.5);
-
-                button.setInteractive({
-                    useHandCursor:true
-                });
-
-                button.on(
-                    "pointerdown",
-                    ()=>{
-
-                        startAudio();
-
-                        if(!unlocked[item.id]){
-
-                            if(
-                                totalCoins >=
-                                item.price
-                            ){
-
-                                totalCoins -=
-                                    item.price;
-
-                                unlocked[item.id] =
-                                    true;
-
-                                selectedTractor =
-                                    item.id;
-
-                                sound("buy");
-
-                                saveData();
-
-                                this.scene.restart();
-                            }
-
-                        }else{
-
-                            selectedTractor =
-                                item.id;
-
-                            saveData();
-
-                            sound("buy");
-
-                            this.scene.restart();
-                        }
-                    }
-                );
-            }
-        );
-
-        let back =
-            this.add.text(
-                400,
-                540,
-                "← VOLTAR",
-                {
-                    fontSize:"23px",
-                    backgroundColor:"#455a64",
-                    padding:12,
-                    color:"#ffffff"
-                }
-            ).setOrigin(0.5);
-
-        back.setInteractive({
-            useHandCursor:true
-        });
-
-        back.on(
-            "pointerdown",
-            ()=>{
-                this.scene.start("MenuScene");
-            }
-        );
-    }
+ constructor(){super("ShopScene")}
+ create(){
+  createTextures(this);this.cameras.main.setBackgroundColor("#263238");
+  this.add.text(400,25,"GARAGEM DE VEÍCULOS",{fontSize:"29px",fontStyle:"bold",color:"#fff"}).setOrigin(.5);
+  this.add.text(400,60,"💰 "+totalCoins+" moedas  •  Toque em um veículo para comprar ou usar",{fontSize:"14px",color:"#ffdf55"}).setOrigin(.5);
+  // Duas colunas e seis linhas; a lista pode ser rolada no celular.
+  const panel=this.add.container(0,0);
+  const maskShape=this.make.graphics({x:0,y:0,add:false});maskShape.fillRect(25,90,750,435);
+  const mask=maskShape.createGeometryMask();panel.setMask(mask);
+  VEHICLES.forEach((v,i)=>{
+   let col=i%2,row=Math.floor(i/2),x=220+col*360,y=125+row*125;
+   panel.add(this.add.rectangle(x,y,330,108,0x37474f).setStrokeStyle(2,0x607d8b));
+   panel.add(this.add.image(x-105,y,"vehicle_"+v.id).setScale(.48));
+   panel.add(this.add.text(x-52,y-30,v.name,{fontSize:"15px",fontStyle:"bold",color:"#fff"}));
+   let label=unlocked[v.id]?(selectedVehicle===v.id?"✓ EM USO":"USAR"):"🔒 "+v.price+" moedas";
+   let b=this.add.text(x+85,y+15,label,{fontSize:"14px",fontStyle:"bold",backgroundColor:selectedVehicle===v.id?"#388e3c":"#546e7a",padding:7,color:"#fff"}).setOrigin(.5).setInteractive({useHandCursor:true});
+   b.on("pointerdown",()=>{startAudio();if(!unlocked[v.id]){if(totalCoins<v.price){this.add.text(400,560,"Moedas insuficientes!",{fontSize:"20px",color:"#ff7777"}).setOrigin(.5);return;}totalCoins-=v.price;unlocked[v.id]=true;}selectedVehicle=v.id;saveData();this.scene.restart();});
+   panel.add(b);
+  });
+  this.input.on("wheel",(p,objs,dx,dy)=>{panel.y=Phaser.Math.Clamp(panel.y-dy,Math.min(0,530-Math.ceil(VEHICLES.length/2)*125),0);});
+  this.input.on("pointerdown",p=>{if(p.y>90&&p.y<525){this.dragY=p.y;this.dragPanelY=panel.y;}});
+  this.input.on("pointermove",p=>{if(p.isDown&&this.dragY!==undefined){panel.y=Phaser.Math.Clamp(this.dragPanelY+(p.y-this.dragY),Math.min(0,530-Math.ceil(VEHICLES.length/2)*125),0);}});
+  button(this,400,565,"← VOLTAR AO MENU",()=>this.scene.start("MenuScene"),{bg:"#455a64",size:"19px"});
+ }
 }
-
-
-/* =========================================================
-   JOGO
-========================================================= */
-
 class GameScene extends Phaser.Scene{
-
-    constructor(){
-        super("GameScene");
-    }
-
-    create(){
-
-        createTextures(this);
-
-        score = 0;
-        coins = 0;
-        lives = 3;
-
-        gameSpeed = 230;
-
-        gameOver = false;
-
-        lastObstacleX = 0;
-        lastGroundX = 0;
-
-        jumpsUsed = 0;
-
-        this.cameras.main.setBackgroundColor(
-            "#7bc8f6"
-        );
-
-        this.sun =
-            this.add.circle(
-                680,
-                90,
-                48,
-                0xffdf4d
-            );
-
-        this.sun.setScrollFactor(0);
-
-        this.moon =
-            this.add.circle(
-                680,
-                90,
-                40,
-                0xf5f5dc
-            );
-
-        this.moon.setScrollFactor(0);
-        this.moon.setVisible(false);
-
-
-        /* GRUPOS */
-
-        groundPieces =
-            this.physics.add.staticGroup();
-
-        obstacles =
-            this.physics.add.staticGroup();
-
-        coinsGroup =
-            this.physics.add.group({
-                allowGravity:false
-            });
-
-
-        /* =====================================================
-           TRATOR
-        ===================================================== */
-
-        tractor =
-            this.physics.add.sprite(
-                180,
-                350,
-                "tractor"
-            );
-
-        tractor.setScale(0.72);
-
-        tractor.setCollideWorldBounds(false);
-
-        tractor.body.setSize(
-            100,
-            35
-        );
-
-        tractor.body.setOffset(
-            28,
-            55
-        );
-
-
-        /* CÂMERA */
-
-        this.cameras.main.startFollow(
-            tractor,
-            true,
-            0.08,
-            0.08
-        );
-
-        this.cameras.main.setBounds(
-            0,
-            0,
-            1000000,
-            600
-        );
-
-
-        /* CHÃO */
-
-        for(
-            let x=0;
-            x<3000;
-            x+=500
-        ){
-
-            addGround(
-                this,
-                x
-            );
-        }
-
-
-        /* OBSTÁCULOS INICIAIS */
-
-        let firstObstacle = 1000;
-
-        for(
-            let x=firstObstacle;
-            x<3200;
-        ){
-
-            createObstacle(
-                this,
-                x
-            );
-
-            x += Phaser.Math.Between(
-                MIN_OBSTACLE_DISTANCE,
-                MAX_OBSTACLE_DISTANCE
-            );
-        }
-
-
-        /* COLISÃO CHÃO */
-
-        this.physics.add.collider(
-            tractor,
-            groundPieces,
-            ()=>{
-                jumpsUsed = 0;
-            }
-        );
-
-
-        /* COLISÃO OBSTÁCULOS */
-
-        this.physics.add.collider(
-            tractor,
-            obstacles,
-            hitObstacle,
-            null,
-            this
-        );
-
-
-        /* MOEDAS */
-
-        this.physics.add.overlap(
-            tractor,
-            coinsGroup,
-            collectCoin,
-            null,
-            this
-        );
-
-
-        /* HUD */
-
-        scoreText =
-            this.add.text(
-                20,
-                20,
-                "📏 0 m",
-                {
-                    fontSize:"22px",
-                    color:"#ffffff",
-                    stroke:"#000000",
-                    strokeThickness:4
-                }
-            );
-
-        coinsText =
-            this.add.text(
-                20,
-                50,
-                "💰 0",
-                {
-                    fontSize:"22px",
-                    color:"#ffffff",
-                    stroke:"#000000",
-                    strokeThickness:4
-                }
-            );
-
-        livesText =
-            this.add.text(
-                20,
-                80,
-                "❤️❤️❤️",
-                {
-                    fontSize:"22px",
-                    stroke:"#000000",
-                    strokeThickness:4
-                }
-            );
-
-        speedText =
-            this.add.text(
-                20,
-                110,
-                "🚜 Velocidade: 1x",
-                {
-                    fontSize:"18px",
-                    color:"#ffffff",
-                    stroke:"#000000",
-                    strokeThickness:3
-                }
-            );
-
-        [
-            scoreText,
-            coinsText,
-            livesText,
-            speedText
-        ].forEach(
-            t=>t.setScrollFactor(0)
-        );
-
-
-        /* BOTÃO DE PULO */
-
-        let jumpButton =
-            this.add.text(
-                700,
-                500,
-                "⬆\nPULAR",
-                {
-                    fontSize:"23px",
-                    align:"center",
-                    backgroundColor:"#ffffff88",
-                    padding:12,
-                    color:"#000000"
-                }
-            ).setOrigin(0.5);
-
-        jumpButton.setScrollFactor(0);
-
-        jumpButton.setInteractive();
-
-        jumpButton.on(
-            "pointerdown",
-            ()=>{
-                jump();
-            }
-        );
-
-
-        /* TECLADO */
-
-        this.input.keyboard.on(
-            "keydown-UP",
-            ()=>{
-                jump();
-            }
-        );
-
-        this.input.keyboard.on(
-            "keydown-SPACE",
-            ()=>{
-                jump();
-            }
-        );
-
-
-        /* TOQUE */
-
-        this.input.on(
-            "pointerdown",
-            pointer=>{
-
-                if(
-                    pointer.x >
-                    this.scale.width * 0.55
-                ){
-
-                    jump();
-                }
-            }
-        );
-
-
-        /* CHUVA */
-
-        rainParticles =
-            this.add.particles(
-                0,
-                0,
-                "coin",
-                {
-                    lifespan:700,
-                    speedY:{
-                        min:400,
-                        max:700
-                    },
-                    speedX:{
-                        min:-40,
-                        max:40
-                    },
-                    scale:0.12,
-                    quantity:0,
-                    frequency:80
-                }
-            );
-
-        rainParticles.setScrollFactor(0);
-
-        this.time.addEvent({
-
-            delay:15000,
-
-            loop:true,
-
-            callback:()=>{
-
-                rain = !rain;
-
-                if(rain){
-
-                    rainParticles.quantity = 5;
-
-                    this.cameras.main.setBackgroundColor(
-                        "#647b88"
-                    );
-
-                }else{
-
-                    rainParticles.quantity = 0;
-
-                    this.cameras.main.setBackgroundColor(
-                        "#7bc8f6"
-                    );
-                }
-            }
-        });
-    }
-
-
-    update(time,delta){
-
-        if(gameOver)
-            return;
-
-
-        /* VELOCIDADE */
-
-        gameSpeed +=
-            delta * 0.004;
-
-        tractor.setVelocityX(
-            gameSpeed
-        );
-
-
-        /* DISTÂNCIA */
-
-        score =
-            Math.floor(
-                tractor.x / 10
-            );
-
-
-        if(score > highScore){
-
-            highScore = score;
-
-            saveData();
-        }
-
-
-        scoreText.setText(
-            "📏 " + score + " m"
-        );
-
-        coinsText.setText(
-            "💰 " + coins
-        );
-
-
-        let hearts = "";
-
-        for(
-            let i=0;
-            i<lives;
-            i++
-        ){
-
-            hearts += "❤️";
-        }
-
-        livesText.setText(
-            hearts
-        );
-
-
-        speedText.setText(
-            "🚜 Velocidade: " +
-            (gameSpeed/230).toFixed(1) +
-            "x"
-        );
-
-
-        /* CHÃO INFINITO */
-
-        if(
-            tractor.x >
-            lastGroundX - 1800
-        ){
-
-            for(
-                let i=0;
-                i<5;
-                i++
-            ){
-
-                addGround(
-                    this,
-                    lastGroundX
-                );
-            }
-        }
-
-
-        /* OBSTÁCULOS INFINITOS */
-
-        if(
-            tractor.x >
-            lastObstacleX - 1800
-        ){
-
-            createObstacle(
-                this,
-                lastObstacleX +
-                Phaser.Math.Between(
-                    MIN_OBSTACLE_DISTANCE,
-                    MAX_OBSTACLE_DISTANCE
-                )
-            );
-        }
-
-
-        /* RESET DO PULO */
-
-        if(
-            tractor.body.blocked.down
-        ){
-
-            jumpsUsed = 0;
-        }
-
-
-        /* CAIU */
-
-        if(
-            tractor.y > 650
-        ){
-
-            loseLife.call(this);
-        }
-    }
+ constructor(){super("GameScene")}
+ create(){
+  createTextures(this);score=0;coins=0;lives=3;gameSpeed=230;gameOver=false;paused=false;jumpsUsed=0;lastGroundX=0;lastObstacleX=0;lastOverheadX=1200;currentBiome=-1;scenery=[];
+  this.cameras.main.setBackgroundColor("#7bc8f2");groundPieces=this.physics.add.staticGroup();obstacles=this.physics.add.staticGroup();overheadObstacles=this.physics.add.group({allowGravity:false,immovable:true});coinsGroup=this.physics.add.group({allowGravity:false});
+  tractor=this.physics.add.sprite(180,440,"vehicle_"+selectedVehicle).setScale(VEHICLES.find(v=>v.id===selectedVehicle)?.kind==="moto" ? 0.7 : 0.72);
+  tractor.setCollideWorldBounds(false);tractor.body.setSize(100,35);tractor.body.setOffset(28,55);
+  this.cameras.main.startFollow(tractor,true,.08,.08);this.cameras.main.setBounds(0,0,1000000,600);
+  for(let x=0;x<3500;x+=500)addGround(this,x);
+  for(let x=950;x<3300;){createObstacle(this,x);x+=Phaser.Math.Between(850,1150);}
+  this.physics.add.collider(tractor,groundPieces,()=>{if(tractor.body.blocked.down)jumpsUsed=0;});
+  this.physics.add.collider(tractor,obstacles,hitObstacle,null,this);
+  this.physics.add.overlap(tractor,overheadObstacles,hitOverhead,null,this);
+  this.physics.add.overlap(tractor,coinsGroup,collectCoin,null,this);
+  scoreText=this.add.text(16,14,"📏 0 m",{fontSize:"19px",color:"#fff",stroke:"#000",strokeThickness:4}).setScrollFactor(0);
+  coinsText=this.add.text(16,41,"💰 0",{fontSize:"19px",color:"#fff",stroke:"#000",strokeThickness:4}).setScrollFactor(0);
+  livesText=this.add.text(16,68,"❤️❤️❤️",{fontSize:"19px",color:"#fff",stroke:"#000",strokeThickness:4}).setScrollFactor(0);
+  speedText=this.add.text(16,95,"Velocidade: 1x",{fontSize:"15px",color:"#fff",stroke:"#000",strokeThickness:3}).setScrollFactor(0);
+  biomeText=this.add.text(400,15,"CAMPO ABERTO",{fontSize:"15px",fontStyle:"bold",color:"#fff",stroke:"#234",strokeThickness:4}).setOrigin(.5).setScrollFactor(0);
+  button(this,748,32,"Ⅱ",()=>this.togglePause(),{size:"21px",bg:"#263238",pad:12}).setScrollFactor(0);
+  jumpButton=this.add.text(700,505,"⬆\nPULAR",{fontSize:Math.round(22*jumpButtonSize)+"px",align:"center",backgroundColor:"#ffffffcc",padding:{left:Math.round(12*jumpButtonSize),right:Math.round(12*jumpButtonSize),top:Math.round(10*jumpButtonSize),bottom:Math.round(10*jumpButtonSize)},color:"#111"}).setOrigin(.5).setScrollFactor(0).setScale(jumpButtonSize).setInteractive();
+  jumpButton.on("pointerdown",()=>this.doJump());
+  this.input.keyboard.on("keydown-UP",()=>this.doJump());this.input.keyboard.on("keydown-SPACE",()=>this.doJump());this.input.keyboard.on("keydown-ESC",()=>this.togglePause());
+  this.input.on("pointerdown",p=>{if(!paused&&p.x<this.scale.width*.55&&p.y>this.scale.height*.25&&p.y<this.scale.height*.8)this.doJump();});
+ }
+ doJump(){if(gameOver||paused||!tractor?.body)return;if(jumpsUsed<MAX_JUMPS){tractor.setVelocityY(jumpsUsed===0?-470:-440);jumpsUsed++;sound("jump");}}
+ togglePause(){
+  if(gameOver)return;
+  if(!paused){
+   paused=true;this.physics.world.pause();this.tweens.pauseAll();this.time.paused=true;
+   pauseLayer=this.add.container(0,0).setScrollFactor(0).setDepth(1000);
+   pauseLayer.add(this.add.rectangle(400,300,800,600,0x000000,.8));
+   pauseLayer.add(this.add.text(400,145,"⏸ JOGO PAUSADO",{fontSize:"36px",fontStyle:"bold",color:"#fff"}).setOrigin(.5));
+   const addBtn=(y,label,fn,bg)=>{let t=this.add.text(400,y,label,{fontSize:"22px",fontStyle:"bold",backgroundColor:bg,padding:{left:22,right:22,top:10,bottom:10},color:"#fff"}).setOrigin(.5).setInteractive();t.on("pointerdown",fn);pauseLayer.add(t);};
+   addBtn(225,"▶ CONTINUAR",()=>this.togglePause(),"#249b45");
+   addBtn(305,"↻ REINICIAR",()=>{this.time.paused=false;this.physics.world.resume();this.scene.restart();},"#80512b");
+   addBtn(385,"⌂ MENU PRINCIPAL",()=>{this.time.paused=false;this.physics.world.resume();this.scene.start("MenuScene");},"#455a64");
+  }else{paused=false;if(pauseLayer){pauseLayer.destroy();pauseLayer=null;}this.time.paused=false;this.physics.world.resume();this.tweens.resumeAll();}
+ }
+ update(time,delta){
+  if(gameOver||paused)return;
+  gameSpeed+=delta*.003;tractor.setVelocityX(gameSpeed);score=Math.floor(tractor.x/10);
+  if(score>highScore){highScore=score;saveData();}
+  scoreText.setText("📏 "+score+" m");coinsText.setText("💰 "+coins);livesText.setText("❤️".repeat(Math.max(0,lives)));speedText.setText("Velocidade: "+(gameSpeed/230).toFixed(1)+"x");
+  this.updateBiome();
+  if(tractor.x>lastGroundX-1800){for(let i=0;i<5;i++)addGround(this,lastGroundX);}
+  if(tractor.x>lastObstacleX-1800)createObstacle(this,lastObstacleX+Phaser.Math.Between(850,1150));
+  if(tractor.x>lastOverheadX-1100){lastOverheadX+=Phaser.Math.Between(1000,1450);createOverhead(this,lastOverheadX);}
+  if(tractor.body.blocked.down)jumpsUsed=0;if(tractor.y>650)loseLife.call(this);
+  [groundPieces,obstacles,coinsGroup,overheadObstacles].forEach(group=>group.getChildren().forEach(o=>{if(o.active&&o.x<tractor.x-900)o.destroy();}));
+  scenery=scenery.filter(o=>o&&o.active);
+ }
+ updateBiome(){
+  let b=Math.floor(score/500);if(b===currentBiome)return;currentBiome=b;
+  let names=["CAMPO ABERTO","ESTRADA RURAL","PLANTAÇÃO","FAZENDA","FAZENDA DO INTERIOR"];
+  biomeText.setText(names[Math.min(b,names.length-1)]);
+  let colors=[0x7bc8f6,0x91cce8,0x75b9e9,0x85c7f2,0x9bcce5];this.cameras.main.setBackgroundColor("#"+colors[Math.min(b,4)].toString(16).padStart(6,"0"));
+  let x=tractor.x+950;
+  if(b>=1)for(let i=0;i<3;i++)scenery.push(this.add.image(x+i*250,500,"fence").setDepth(-2).setScale(.8));
+  if(b>=2)for(let i=0;i<4;i++)scenery.push(this.add.image(x+i*160,475,"crop").setDepth(-3).setScale(.7));
+  if(b>=3){scenery.push(this.add.image(x+300,415,"barn").setDepth(-4).setScale(1));scenery.push(this.add.image(x+40,430,"tree").setDepth(-3));}
+ }
 }
-
-
-/* =========================================================
-   CHÃO
-========================================================= */
-
-function addGround(scene,x){
-
-    let ground =
-        groundPieces.create(
-            x + 250,
-            565,
-            "ground"
-        );
-
-    ground.setOrigin(0.5);
-
-    ground.refreshBody();
-
-    lastGroundX =
-        x + 500;
-}
-
-
-/* =========================================================
-   OBSTÁCULOS
-========================================================= */
-
+function addGround(scene,x){let g=groundPieces.create(x+250,565,"ground");g.refreshBody();lastGroundX=x+500;}
 function createObstacle(scene,x){
-
-    let types = [
-        "rock",
-        "ramp",
-        "water"
-    ];
-
-    let type =
-        Phaser.Utils.Array.GetRandom(
-            types
-        );
-
-    let obstacle;
-
-
-    /* PEDRA */
-
-    if(type === "rock"){
-
-        obstacle =
-            obstacles.create(
-                x,
-                540,
-                "rock"
-            );
-
-        obstacle.setScale(0.45);
-
-        obstacle.body.setSize(
-            35,
-            25
-        );
-
-        obstacle.body.setOffset(
-            17,
-            40
-        );
-    }
-
-
-    /* RAMPA */
-
-    if(type === "ramp"){
-
-        obstacle =
-            obstacles.create(
-                x,
-                545,
-                "ramp"
-            );
-
-        obstacle.setScale(0.60);
-
-        obstacle.body.setSize(
-            65,
-            22
-        );
-
-        obstacle.body.setOffset(
-            20,
-            38
-        );
-    }
-
-
-    /* ÁGUA */
-
-    if(type === "water"){
-
-        obstacle =
-            obstacles.create(
-                x,
-                550,
-                "water"
-            );
-
-        obstacle.setScale(0.55);
-
-        obstacle.body.setSize(
-            60,
-            15
-        );
-
-        obstacle.body.setOffset(
-            35,
-            25
-        );
-    }
-
-
-    obstacle.refreshBody();
-
-
-    /* MOEDAS */
-
-    let amount =
-        Phaser.Math.Between(
-            2,
-            4
-        );
-
-    for(
-        let i=0;
-        i<amount;
-        i++
-    ){
-
-        let coin =
-            coinsGroup.create(
-                x + i*40,
-                420 -
-                Math.abs(
-                    i - amount/2
-                )*15,
-                "coin"
-            );
-
-        coin.body.allowGravity = false;
-    }
-
-
-    lastObstacleX = x;
+ let key=Phaser.Math.RND.pick(["rock","hay"]);let o=obstacles.create(x, key==="rock"?540:548,key);
+ o.setScale(key==="rock"?.45:.75);o.body.setSize(key==="rock"?38:55,key==="rock"?28:35);o.body.setOffset(key==="rock"?16:5,key==="rock"?38:8);o.refreshBody();
+ for(let i=0;i<Phaser.Math.Between(2,4);i++){let c=coinsGroup.create(x+i*38,420-Math.abs(i-1)*12,"coin");c.body.allowGravity=false;}
+ lastObstacleX=x;
 }
-
-
-/* =========================================================
-   MOEDA
-========================================================= */
-
-function collectCoin(
-    tractor,
-    coin
-){
-
-    coin.destroy();
-
-    coins++;
-
-    totalCoins++;
-
-    saveData();
-
-    sound("coin");
+function createOverhead(scene,x){
+ let o=overheadObstacles.create(x,Phaser.Math.Between(285,355),Phaser.Math.RND.pick(["branch","hay"]));
+ o.setScale(o.texture.key==="branch"?.8:.65);o.body.setAllowGravity(false);o.body.setVelocityY(Phaser.Math.Between(90,145));o.body.setVelocityX(-gameSpeed*.45);o.body.setSize(75,22);o.setImmovable(true);
 }
-
-
-/* =========================================================
-   PULO DUPLO
-========================================================= */
-
-function jump(){
-
-    if(gameOver)
-        return;
-
-
-    if(jumpsUsed === 0){
-
-        tractor.setVelocityY(
-            -470
-        );
-
-        jumpsUsed = 1;
-
-        sound("jump");
-
-        return;
-    }
-
-
-    if(jumpsUsed === 1){
-
-        tractor.setVelocityY(
-            -440
-        );
-
-        jumpsUsed = 2;
-
-        sound("jump");
-
-        return;
-    }
-}
-
-
-/* =========================================================
-   COLISÃO COM OBSTÁCULO
-========================================================= */
-
-function hitObstacle(
-    tractor,
-    obstacle
-){
-
-    if(gameOver)
-        return;
-
-    /*
-       Se o trator estiver realmente acima
-       do obstáculo, não perde vida.
-
-       Se houver contato lateral ou por baixo,
-       perde vida.
-    */
-
-    if(
-        tractor.body.bottom <=
-        obstacle.body.top + 3
-    ){
-
-        return;
-    }
-
-    loseLife.call(this);
-}
-
-
-/* =========================================================
-   PERDER VIDA
-========================================================= */
-
+function collectCoin(player,coin){if(!coin.active)return;coin.destroy();coins++;totalCoins++;saveData();sound("coin");}
+function hitObstacle(player,obstacle){if(gameOver||paused)return;if(player.body.bottom<=obstacle.body.top+4)return;loseLife.call(this);}
+function hitOverhead(player,obstacle){if(gameOver||paused||!obstacle.active)return;obstacle.destroy();loseLife.call(this);}
 function loseLife(){
-
-    if(gameOver)
-        return;
-
-    lives--;
-
-    sound("hit");
-
-    tractor.setTint(
-        0xff5555
-    );
-
-    this.time.delayedCall(
-        300,
-        ()=>{
-            if(tractor){
-                tractor.clearTint();
-            }
-        }
-    );
-
-
-    if(lives <= 0){
-
-        endGame.call(this);
-
-    }else{
-
-        tractor.setPosition(
-            tractor.x + 180,
-            350
-        );
-
-        tractor.setVelocity(
-            0,
-            -250
-        );
-
-        jumpsUsed = 0;
-    }
+ if(gameOver||paused)return;lives--;sound("hit");tractor.setTint(0xff5555);
+ this.time.delayedCall(300,()=>{if(tractor?.active)tractor.clearTint();});
+ if(lives<=0){endGame.call(this);}else{tractor.setPosition(tractor.x+180,350);tractor.setVelocity(0,-250);jumpsUsed=0;}
 }
-
-
-/* =========================================================
-   GAME OVER
-========================================================= */
-
 function endGame(){
-
-    gameOver = true;
-
-    tractor.setVelocity(
-        0,
-        0
-    );
-
-    saveData();
-
-    let box =
-        this.add.rectangle(
-            400,
-            300,
-            600,
-            350,
-            0x000000,
-            0.82
-        );
-
-    box.setScrollFactor(0);
-
-    let title =
-        this.add.text(
-            400,
-            190,
-            "💥 FIM DE JOGO",
-            {
-                fontSize:"40px",
-                color:"#ff5555",
-                fontStyle:"bold"
-            }
-        ).setOrigin(0.5);
-
-    title.setScrollFactor(0);
-
-    let stats =
-        this.add.text(
-            400,
-            270,
-            "Você percorreu " +
-            score +
-            " metros!\n\n" +
-            "💰 Moedas: " +
-            coins +
-            "\n" +
-            "🏆 Recorde: " +
-            highScore,
-            {
-                fontSize:"23px",
-                align:"center",
-                color:"#ffffff"
-            }
-        ).setOrigin(0.5);
-
-    stats.setScrollFactor(0);
-
-    let button =
-        this.add.text(
-            400,
-            405,
-            "🏠 VOLTAR AO MENU",
-            {
-                fontSize:"22px",
-                backgroundColor:"#249b45",
-                padding:14,
-                color:"#ffffff"
-            }
-        ).setOrigin(0.5);
-
-    button.setScrollFactor(0);
-
-    button.setInteractive({
-        useHandCursor:true
-    });
-
-    button.on(
-        "pointerdown",
-        ()=>{
-            this.scene.start(
-                "MenuScene"
-            );
-        }
-    );
+ gameOver=true;tractor.setVelocity(0,0);saveData();
+ let layer=this.add.container(0,0).setScrollFactor(0).setDepth(1100);
+ layer.add(this.add.rectangle(400,300,800,600,0x000000,.82));
+ layer.add(this.add.text(400,175,"💥 FIM DE JOGO",{fontSize:"38px",fontStyle:"bold",color:"#ff5555"}).setOrigin(.5));
+ layer.add(this.add.text(400,255,"Distância: "+score+" m\nMoedas nesta partida: "+coins+"\nRecorde: "+highScore+" m",{fontSize:"22px",align:"center",color:"#fff"}).setOrigin(.5));
+ let b=this.add.text(400,375,"⌂ VOLTAR AO MENU",{fontSize:"22px",fontStyle:"bold",backgroundColor:"#249b45",padding:14,color:"#fff"}).setOrigin(.5).setInteractive();
+ b.on("pointerdown",()=>this.scene.start("MenuScene"));layer.add(b);
 }
-
-
-/* =========================================================
-   CONFIGURAÇÃO
-========================================================= */
-
-const config = {
-
-    type:Phaser.AUTO,
-
-    width:800,
-
-    height:600,
-
-    backgroundColor:"#7bc8f6",
-
-    physics:{
-
-        default:"arcade",
-
-        arcade:{
-
-            gravity:{
-                y:1000
-            },
-
-            debug:false
-        }
-    },
-
-    scale:{
-
-        mode:Phaser.Scale.FIT,
-
-        autoCenter:
-            Phaser.Scale.CENTER_BOTH
-    },
-
-    scene:[
-        MenuScene,
-        ShopScene,
-        GameScene
-    ]
-};
-
-
-/* =========================================================
-   INICIAR
-========================================================= */
-
-window.onload = function(){
-
-    new Phaser.Game(
-        config
-    );
-};
-
+const config={type:Phaser.AUTO,width:800,height:600,backgroundColor:"#7bc8f2",physics:{default:"arcade",arcade:{gravity:{y:1000},debug:false}},scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[MenuScene,ShopScene,GameScene]};
+window.onload=()=>new Phaser.Game(config);
 </script>
-
 </body>
     </html>
