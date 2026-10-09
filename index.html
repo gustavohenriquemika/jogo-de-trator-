@@ -37,7 +37,7 @@ VEHICLES.forEach(v => { if (v.price === 0) unlocked[v.id] = true; });
 
 let tractor, trailer, groundPieces, obstacles, overheadObstacles, coinsGroup, sceneryGroup;
 let score = 0, coins = 0, lives = 3, gameSpeed = 230, gameOver = false, paused = false, jumpsUsed = 0;
-let lastGroundX = 0, lastGroundY = 500, lastObstacleX = 0, lastOverheadX = 1200, currentBiome = -1;
+let lastGroundX = 0, lastGroundY = 460, lastObstacleX = 0, lastOverheadX = 1200, currentBiome = -1;
 let scoreText, coinsText, livesText, speedText, jumpButton, biomeText, pauseLayer, pauseBtn;
 let audioCtx = null;
 const MAX_JUMPS = 2;
@@ -108,7 +108,7 @@ function createTextures(scene) {
  drawTexture(scene, "branch", 110, 28, g => { g.lineStyle(13, 0x6d4527); g.lineBetween(5, 14, 105, 14); g.lineStyle(7, 0x4d7e2a); g.lineBetween(32, 12, 20, 2); g.lineBetween(65, 13, 80, 1); });
  drawTexture(scene, "coin", 30, 30, g => { g.fillStyle(0xffd700); g.fillCircle(15, 15, 13); g.lineStyle(3, 0xfff59d); g.strokeCircle(15, 15, 9); });
  drawTexture(scene, "fence", 100, 55, g => { g.fillStyle(0xe6d2a4); g.fillRect(5, 8, 8, 44); g.fillRect(87, 8, 8, 44); g.fillRect(5, 15, 90, 7); g.fillRect(5, 35, 90, 7); });
- drawTexture(scene, "tree", 80, 120, g => { g.fillStyle(0x79502b); g.fillRect(32, 55, 17,65); g.fillStyle(0x2f873c); g.fillCircle(40, 40, 34); });
+ drawTexture(scene, "tree", 80, 120, g => { g.fillStyle(0x79502b); g.fillRect(32, 55, 17, 65); g.fillStyle(0x2f873c); g.fillCircle(40, 40, 34); });
  drawTexture(scene, "barn", 150, 120, g => { g.fillStyle(0xb8332c); g.fillRect(15, 45, 120, 75); g.fillStyle(0x7c211c); g.fillPoints([{x:5,y:48},{x:75,y:2},{x:145,y:48}],true); });
  drawTexture(scene, "crop", 45, 90, g => { g.lineStyle(5, 0x3c7d2b); g.lineBetween(22, 90, 22, 20); g.fillStyle(0x3d963a); g.fillEllipse(12, 38, 24, 12); });
 }
@@ -190,7 +190,7 @@ obstacles = this.physics.add.group();
 overheadObstacles = this.physics.add.group();
 coinsGroup = this.physics.add.group();
 for (let i = 0; i < 10; i++) { this.spawnGround(); }
-let vInfo = VEHICLES.find(v => v.id === selectedVehicle) || VEHICLES[0];
+let vInfo = VEHICLES.find(v => v.id === selectedVehicle) || VEHICLES;
 tractor = this.physics.add.sprite(220, 300, "vehicle_" + vInfo.id);
 tractor.setGravityY(1100).setBodySize(110, 85).setOffset(25, 15).setDepth(2);
 trailer = this.physics.add.sprite(110, 300, "trailer");
@@ -302,7 +302,7 @@ if (currentBiome === 0) weights =;
 if (currentBiome === 1) weights =;
 if (currentBiome === 2) weights =;
 if (currentBiome === 3) weights =;
-let type = types[Phaser.Math.RND.pick(weights)];
+let type = types[weights[Phaser.Math.Between(0, 3)]];
 let asset = this.add.image(850, lastGroundY + 15, type).setOrigin(0.5, 1).setDepth(-1);
 sceneryGroup.push(asset);
 }
