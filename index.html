@@ -1,368 +1,715 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Jogo do Trator Infinito</title>
-<script src="https://jsdelivr.net"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+
 <style>
-html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#111;touch-action:none}
-canvas{display:block;margin:auto}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #18251a;
+  color: white;
+  font-family: Arial, sans-serif;
+  overflow: hidden;
+}
+#game {
+  width: 100%;
+  max-width: 1000px;
+  margin: auto;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: manipulation;
+}
 </style>
 </head>
 <body>
+<div id="game"></div>
+
 <script>
-const VEHICLES = [
- {id:"green",name:"Trator Verde",kind:"tractor",color:0x2e8b3c,price:0},
- {id:"red",name:"Trator Vermelho",kind:"tractor",color:0xd62828,price:50},
- {id:"blue",name:"Trator Azul",kind:"tractor",color:0x1976d2,price:100},
- {id:"yellow",name:"Trator Amarelo",kind:"tractor",color:0xf5b700,price:150},
- {id:"orange",name:"Trator Laranja",kind:"tractor",color:0xf07818,price:200},
- {id:"purple",name:"Trator Roxo",kind:"tractor",color:0x8e44ad,price:250},
- {id:"motoRed",name:"Moto Cross Vermelha",kind:"moto",color:0xe53935,price:300},
- {id:"motoBlue",name:"Moto Cross Azul",kind:"moto",color:0x2196f3,price:350},
- {id:"motoGreen",name:"Moto Cross Verde",kind:"moto",color:0x43a047,price:400},
- {id:"motoYellow",name:"Moto Cross Amarela",kind:"moto",color:0xffc107,price:450},
- {id:"motoBlack",name:"Moto Cross Preta",kind:"moto",color:0x303030,price:500},
- {id:"motoPurple",name:"Moto Cross Roxa",kind:"moto",color:0x9c27b0,price:550}
+const W = 800;
+const H = 600;
+
+const save = {
+  get(key, fallback) {
+    try {
+      const value = localStorage.getItem("trator_" + key);
+      return value === null ? fallback : JSON.parse(value);
+    } catch (e) {
+      return fallback;
+    }
+  },
+  set(key, value) {
+    try {
+      localStorage.setItem("trator_" + key, JSON.stringify(value));
+    } catch (e) {}
+  }
+};
+
+const vehicles = [
+  { name: "Trator Verde", type: "tractor", color: 0x39a845, price: 0 },
+  { name: "Trator Vermelho", type: "tractor", color: 0xd83932, price: 100 },
+  { name: "Trator Azul", type: "tractor", color: 0x2584d8, price: 180 },
+  { name: "Trator Amarelo", type: "tractor", color: 0xf0bd28, price: 250 },
+  { name: "Trator Rural", type: "tractor", color: 0x8b6741, price: 350 },
+  { name: "Trator Turbo", type: "tractor", color: 0x9a42d1, price: 500 },
+  { name: "Moto Verde", type: "moto", color: 0x30b95c, price: 150 },
+  { name: "Moto Vermelha", type: "moto", color: 0xe83c3c, price: 220 },
+  { name: "Moto Azul", type: "moto", color: 0x238de2, price: 300 },
+  { name: "Moto Laranja", type: "moto", color: 0xff851b, price: 400 },
+  { name: "Moto Roxa", type: "moto", color: 0xa04bdb, price: 550 },
+  { name: "Moto Especial", type: "moto", color: 0xffffff, price: 750 }
 ];
 
-let totalCoins = Number(localStorage.getItem("tratorCoins") || 0);
-let highScore = Number(localStorage.getItem("tratorRecord") || 0);
-let selectedVehicle = localStorage.getItem("vehicleSelected") || "green";
-let jumpButtonSize = Number(localStorage.getItem("tratorJumpSize") || 1);
-let unlocked = JSON.parse(localStorage.getItem("vehiclesUnlocked") || '{"green":true}');
+let coins = save.get("coins", 0);
+let unlocked = save.get("unlocked", [0]);
+let selected = save.get("selected", 0);
+let record = save.get("record", 0);
 
-VEHICLES.forEach(v => { if (v.price === 0) unlocked[v.id] = true; });
-
-let tractor, trailer, groundPieces, obstacles, overheadObstacles, coinsGroup, sceneryGroup;
-let score = 0, coins = 0, lives = 3, gameSpeed = 230, gameOver = false, paused = false, jumpsUsed = 0;
-let lastGroundX = 0, lastGroundY = 460, lastObstacleX = 0, lastOverheadX = 1200, currentBiome = -1;
-let scoreText, coinsText, livesText, speedText, jumpButton, biomeText, pauseLayer, pauseBtn;
-let audioCtx = null;
-const MAX_JUMPS = 2;
-
-function saveData() {
- localStorage.setItem("tratorCoins", totalCoins);
- localStorage.setItem("tratorRecord", highScore);
- localStorage.setItem("vehicleSelected", selectedVehicle);
- localStorage.setItem("vehiclesUnlocked", JSON.stringify(unlocked));
- localStorage.setItem("tratorJumpSize", jumpButtonSize);
+function saveProgress() {
+  save.set("coins", coins);
+  save.set("unlocked", unlocked);
+  save.set("selected", selected);
+  save.set("record", record);
 }
 
-function startAudio() {
- try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {}
+function addText(scene, x, y, text, size = 24, color = "#ffffff") {
+  return scene.add.text(x, y, text, {
+    fontFamily: "Arial",
+    fontSize: size + "px",
+    color,
+    fontStyle: "bold",
+    stroke: "#18251a",
+    strokeThickness: 3
+  }).setOrigin(0.5);
 }
 
-function sound(type) {
- try {
-  startAudio();
-  let o = audioCtx.createOscillator(), g = audioCtx.createGain();
-  o.connect(g); g.connect(audioCtx.destination);
-  o.frequency.value = ({ coin: 800, jump: 420, hit: 100, buy: 650, break: 180 }[type] || 300);
-  o.type = "square";
-  g.gain.setValueAtTime(.06, audioCtx.currentTime);
-  g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + .13);
-  o.start(); o.stop(audioCtx.currentTime + .13);
- } catch (e) {}
-}
+function makeButton(scene, x, y, label, callback, width = 220) {
+  const bg = scene.add.rectangle(x, y, width, 48, 0x2f8d43)
+    .setStrokeStyle(3, 0xc5e8a5)
+    .setInteractive({ useHandCursor: true });
 
-function drawTexture(scene, key, w, h, fn) {
- let g = scene.make.graphics({ x: 0, y: 0, add: false });
- fn(g); g.generateTexture(key, w, h); g.destroy();
+  const text = addText(scene, x, y, label, 20);
+
+  bg.on("pointerover", () => bg.setFillStyle(0x46b958));
+  bg.on("pointerout", () => bg.setFillStyle(0x2f8d43));
+  bg.on("pointerdown", callback);
+
+  return { bg, text };
 }
 
 function createTextures(scene) {
- VEHICLES.forEach(v => drawTexture(scene, "vehicle_" + v.id, 160, 115, g => {
-  if (v.kind === "tractor") {
-   g.fillStyle(v.color); g.fillRoundedRect(25, 30, 102, 42, 7); g.fillRoundedRect(83, 14, 52, 35, 6);
-   g.fillStyle(0x333333); g.fillRect(43, 2, 48, 40); g.fillStyle(0x9ddcff); g.fillRect(49, 8, 36, 27);
-   g.fillStyle(0xffffa0); g.fillCircle(139, 35, 6); g.fillStyle(0x555555); g.fillRect(110, 0, 8, 25);
-   g.fillStyle(0x171717); g.fillCircle(39, 80, 27); g.fillCircle(119, 78, 19);
-   g.fillStyle(0x888888); g.fillCircle(39, 80, 13); g.fillCircle(119, 78, 9);
-  } else {
-   g.lineStyle(7, 0x252525); g.strokeCircle(35, 83, 24); g.strokeCircle(122, 83, 24);
-   g.fillStyle(0x777777); g.fillCircle(35, 83, 10); g.fillCircle(122, 83, 10);
-   g.lineStyle(7, v.color); g.lineBetween(35, 83, 66, 49); g.lineBetween(66, 49, 91, 82); g.lineBetween(91, 82, 35, 83);
-   g.lineBetween(66, 49, 105, 47); g.lineBetween(105, 47, 122, 83); g.lineBetween(66, 49, 57, 29);
-   g.lineStyle(5, 0x222222); g.lineBetween(48, 27, 72, 27); g.lineBetween(105, 47, 124, 37);
-   g.fillStyle(v.color); g.fillRoundedRect(58, 31, 43, 19, 5); g.fillRoundedRect(80, 23, 21, 11, 4);
-   g.fillStyle(0x222222); g.fillCircle(71, 17, 10); g.fillStyle(0xeeeeee); g.fillCircle(71, 17, 5);
-   g.fillStyle(0xfff3a0); g.fillCircle(132, 39, 5);
+  const g = scene.make.graphics({ x: 0, y: 0, add: false });
+
+  // Chão
+  g.fillStyle(0x704326);
+  g.fillRect(0, 0, 128, 120);
+  g.fillStyle(0x55a936);
+  g.fillRect(0, 0, 128, 15);
+  g.fillStyle(0x8d6035);
+  for (let i = 0; i < 8; i++) {
+    g.fillRect((i * 19) % 120, 27 + (i * 13) % 80, 5, 4);
   }
- }));
- drawTexture(scene, "trailer", 120, 80, g => {
-  g.fillStyle(0x7c211c); g.fillRect(10, 20, 100, 35);
-  g.fillStyle(0x555555); g.fillRect(100, 43, 20, 6);
-  g.fillStyle(0x171717); g.fillCircle(35, 60, 20); g.fillCircle(85, 60, 20);
-  g.fillStyle(0x888888); g.fillCircle(35, 60, 9); g.fillCircle(85, 60, 9);
-  g.fillStyle(0xd8a83e); g.fillCircle(60, 12, 10);
- });
- drawTexture(scene, "ground", 120, 120, g => {
-  g.fillStyle(0x80502b); g.fillRect(0, 0, 120, 120);
-  g.fillStyle(0x3d8b32); g.fillRect(0, 0, 120, 15);
- });
- drawTexture(scene, "rock", 50, 50, g => { g.fillStyle(0x777777); g.fillCircle(25, 25, 24); g.fillStyle(0x999999); g.fillCircle(18, 16, 7); });
- drawTexture(scene, "hay", 64, 48, g => { g.fillStyle(0xd8a83e); g.fillRoundedRect(2, 4, 60, 42, 8); g.lineStyle(3, 0x9a6c25); g.strokeRoundedRect(2, 4, 60, 42, 8); });
- drawTexture(scene, "bighay", 110, 90, g => { g.fillStyle(0xbf9030); g.fillRoundedRect(4, 4, 102, 82, 12); g.lineStyle(5, 0x7c5314); g.strokeRoundedRect(4, 4, 102, 82, 12); });
- drawTexture(scene, "branch", 110, 28, g => { g.lineStyle(13, 0x6d4527); g.lineBetween(5, 14, 105, 14); g.lineStyle(7, 0x4d7e2a); g.lineBetween(32, 12, 20, 2); g.lineBetween(65, 13, 80, 1); });
- drawTexture(scene, "coin", 30, 30, g => { g.fillStyle(0xffd700); g.fillCircle(15, 15, 13); g.lineStyle(3, 0xfff59d); g.strokeCircle(15, 15, 9); });
- drawTexture(scene, "fence", 100, 55, g => { g.fillStyle(0xe6d2a4); g.fillRect(5, 8, 8, 44); g.fillRect(87, 8, 8, 44); g.fillRect(5, 15, 90, 7); g.fillRect(5, 35, 90, 7); });
- drawTexture(scene, "tree", 80, 120, g => { g.fillStyle(0x79502b); g.fillRect(32, 55, 17, 65); g.fillStyle(0x2f873c); g.fillCircle(40, 40, 34); });
- drawTexture(scene, "barn", 150, 120, g => { g.fillStyle(0xb8332c); g.fillRect(15, 45, 120, 75); g.fillStyle(0x7c211c); g.fillPoints([{x:5,y:48},{x:75,y:2},{x:145,y:48}],true); });
- drawTexture(scene, "crop", 45, 90, g => { g.lineStyle(5, 0x3c7d2b); g.lineBetween(22, 90, 22, 20); g.fillStyle(0x3d963a); g.fillEllipse(12, 38, 24, 12); });
+  g.generateTexture("ground", 128, 120);
+  g.clear();
+
+  // Tratores
+  vehicles.forEach((v, i) => {
+    g.clear();
+
+    if (v.type === "tractor") {
+      // Rodas
+      g.fillStyle(0x222222);
+      g.fillCircle(43, 87, 23);
+      g.fillCircle(116, 92, 16);
+
+      g.fillStyle(0x999999);
+      g.fillCircle(43, 87, 11);
+      g.fillCircle(116, 92, 7);
+
+      g.fillStyle(0x555555);
+      g.fillCircle(43, 87, 5);
+      g.fillCircle(116, 92, 3);
+
+      // Corpo
+      g.fillStyle(v.color);
+      g.fillRoundedRect(21, 49, 111, 36, 7);
+      g.fillRect(85, 61, 40, 16);
+
+      // Capô
+      g.fillStyle(v.color);
+      g.fillRoundedRect(87, 39, 43, 31, 5);
+
+      // Cabine
+      g.fillStyle(0x343d36);
+      g.fillRoundedRect(43, 20, 46, 43, 4);
+      g.fillStyle(0x86d9ee);
+      g.fillRect(49, 26, 34, 26);
+
+      // Telhado
+      g.fillStyle(v.color);
+      g.fillRect(38, 16, 56, 8);
+
+      // Farol e escapamento
+      g.fillStyle(0xfff5a1);
+      g.fillRect(126, 47, 7, 9);
+      g.fillStyle(0x555555);
+      g.fillRect(97, 22, 7, 22);
+
+      // Detalhes
+      g.fillStyle(0xffffff);
+      g.fillRect(28, 55, 6, 4);
+    } else {
+      // Rodas da moto
+      g.fillStyle(0x202020);
+      g.fillCircle(35, 81, 15);
+      g.fillCircle(113, 81, 15);
+
+      g.fillStyle(0xaaaaaa);
+      g.fillCircle(35, 81, 7);
+      g.fillCircle(113, 81, 7);
+
+      // Chassi
+      g.lineStyle(9, 0x444444);
+      g.lineBetween(35, 81, 59, 53);
+      g.lineBetween(59, 53, 91, 78);
+      g.lineBetween(91, 78, 113, 81);
+
+      // Carenagem
+      g.fillStyle(v.color);
+      g.fillRoundedRect(48, 45, 50, 21, 8);
+      g.fillTriangle(83, 46, 122, 49, 105, 61);
+
+      // Banco
+      g.fillStyle(0x242424);
+      g.fillRoundedRect(49, 35, 37, 10, 4);
+
+      // Guidão
+      g.lineStyle(4, 0xcccccc);
+      g.lineBetween(99, 39, 119, 30);
+      g.lineBetween(115, 30, 126, 31);
+
+      // Piloto estilizado
+      g.fillStyle(0x333333);
+      g.fillCircle(74, 20, 10);
+      g.fillStyle(v.color === 0xffffff ? 0xffd34e : v.color);
+      g.fillCircle(74, 18, 9);
+      g.fillStyle(0x242424);
+      g.fillRect(67, 29, 12, 17);
+
+      g.fillStyle(0xfff2a1);
+      g.fillCircle(124, 49, 4);
+    }
+
+    g.generateTexture("vehicle" + i, 150, 115);
+  });
+
+  g.clear();
+
+  // Pedra
+  g.fillStyle(0x777777);
+  g.fillPoints([
+    {x: 4, y: 43}, {x: 10, y: 20}, {x: 26, y: 5},
+    {x: 44, y: 13}, {x: 54, y: 37}, {x: 43, y: 48}
+  ], true);
+  g.fillStyle(0xaaaaaa);
+  g.fillTriangle(13, 22, 27, 9, 31, 26);
+  g.generateTexture("rock", 60, 52);
+
+  g.clear();
+
+  // Fardo de feno
+  g.fillStyle(0xc99a42);
+  g.fillRoundedRect(2, 2, 56, 45, 5);
+  g.lineStyle(3, 0x8a5e23);
+  g.lineBetween(10, 5, 10, 43);
+  g.lineBetween(28, 5, 28, 43);
+  g.lineBetween(46, 5, 46, 43);
+  g.generateTexture("hay", 60, 50);
+
+  g.clear();
+
+  // Galho
+  g.lineStyle(10, 0x694225);
+  g.lineBetween(2, 35, 78, 18);
+  g.lineStyle(6, 0x694225);
+  g.lineBetween(33, 28, 22, 9);
+  g.lineBetween(54, 23, 65, 6);
+  g.generateTexture("branch", 82, 45);
+
+  g.clear();
+
+  // Moeda
+  g.fillStyle(0xffd42a);
+  g.fillCircle(20, 20, 18);
+  g.lineStyle(3, 0xfff19a);
+  g.strokeCircle(20, 20, 14);
+  g.fillStyle(0xc58a12);
+  g.fillRect(17, 10, 6, 20);
+  g.generateTexture("coin", 40, 40);
+
+  g.clear();
+
+  // Árvore
+  g.fillStyle(0x694225);
+  g.fillRect(21, 43, 12, 45);
+  g.fillStyle(0x2e7d32);
+  g.fillCircle(27, 27, 26);
+  g.fillCircle(10, 41, 16);
+  g.fillCircle(45, 41, 17);
+  g.generateTexture("tree", 55, 90);
+
+  g.destroy();
 }
 
-function button(scene, x, y, label, fn, style = {}) {
- let t = scene.add.text(x, y, label, {
-  fontSize: style.size || "22px",
-  fontStyle: "bold",
-  backgroundColor: style.bg || "#249b45",
-  padding: { left: style.pad || 15, right: style.pad || 15, top: 9, bottom: 9 },
-  color: "#fff",
-  align: "center"
- }).setOrigin(0.5).setInteractive({ useHandCursor: true });
- t.on("pointerdown", (pointer, localX, localY, event) => {
-  if(event) event.stopPropagation();
-  fn();
- });
- return t;
+class BootScene extends Phaser.Scene {
+  constructor() { super("BootScene"); }
+
+  create() {
+    createTextures(this);
+    this.scene.start("MenuScene");
+  }
 }
 
 class MenuScene extends Phaser.Scene {
- constructor() { super("MenuScene") }
- create() {
-  createTextures(this); this.cameras.main.setBackgroundColor("#78c9f2"); this.add.rectangle(400, 470, 800, 260, 0x69a83b);
-  this.add.text(400, 50, "🚜 TRATOR INFINITO 2.0", { fontSize: "29px", fontStyle: "bold", color: "#fff", stroke: "#333", strokeThickness: 5 }).setOrigin(0.5);
-  this.add.image(400, 155, "vehicle_" + selectedVehicle).setScale(0.9);
-  this.add.text(400, 230, "Veículo: " + (VEHICLES.find(v => v.id === selectedVehicle)?.name || ""), { fontSize: "18px", color: "#fff", fontStyle: "bold" }).setOrigin(0.5);
-  this.add.text(400, 263, "💰 " + totalCoins + " moedas", { fontSize: "21px", color: "#fff", fontStyle: "bold" }).setOrigin(0.5);
-  
-  button(this, 400, 320, "▶ JOGAR", () => { startAudio(); this.scene.start("GameScene") }, { size: "26px" });
-  button(this, 400, 385, "🚜 GARAGEM", () => this.scene.start("ShopScene"), { size: "18px", bg: "#80512b" });
-  
-  this.add.text(400, 445, "Tamanho do botão de pulo", { fontSize: "15px", color: "#fff", fontStyle: "bold" }).setOrigin(0.5);
-  button(this, 310, 480, "−", () => { jumpButtonSize = Math.max(0.7, Math.round((jumpButtonSize - 0.15) * 100) / 100); saveData(); this.scene.restart() }, { bg: "#455a64", pad: 15 });
-  this.add.text(400, 480, Math.round(jumpButtonSize * 100) + "%", { fontSize: "18px", color: "#fff", fontStyle: "bold" }).setOrigin(0.5);
-  button(this, 490, 480, "+", () => { jumpButtonSize = Math.min(1.5, Math.round((jumpButtonSize + 0.15) * 100) / 100); saveData(); this.scene.restart() }, { bg: "#455a64", pad: 15 });
-  this.add.text(400, 550, "Recorde: " + highScore + " m  •  Seta Cima / Espaço pula", { fontSize: "14px", color: "#fff" }).setOrigin(0.5);
- }
+  constructor() { super("MenuScene"); }
+
+  create() {
+    this.cameras.main.setBackgroundColor("#8bd6f5");
+
+    this.add.rectangle(400, 500, 800, 200, 0x73bd46);
+    for (let i = 0; i < 8; i++) {
+      this.add.image(i * 120, 415, "tree").setScale(1.1);
+    }
+
+    addText(this, 400, 65, "🚜 JOGO DO TRATOR INFINITO", 31);
+    addText(this, 400, 115, "Aventure-se pelo campo!", 20, "#fff6a0");
+    addText(this, 400, 165, "🪙 Moedas: " + coins + "    🏆 Recorde: " + record, 19);
+
+    this.add.image(400, 310, "vehicle" + selected).setScale(1.35);
+
+    makeButton(this, 400, 405, "JOGAR", () => {
+      this.scene.start("GameScene");
+    });
+
+    makeButton(this, 400, 465, "GARAGEM DE VEÍCULOS", () => {
+      this.scene.start("ShopScene");
+    });
+
+    addText(this, 400, 550, "Toque na tela ou aperte ESPAÇO para pular", 15);
+  }
 }
 
 class ShopScene extends Phaser.Scene {
- constructor() { super("ShopScene") }
- create() {
-  this.cameras.main.setBackgroundColor("#263238");
-  this.add.text(400, 25, "GARAGEM DE VEÍCULOS", { fontSize: "24px", fontStyle: "bold", color: "#fff" }).setOrigin(0.5);
-  this.add.text(400, 55, "💰 Suas Moedas: " + totalCoins, { fontSize: "18px", color: "#ffd700", fontStyle: "bold" }).setOrigin(0.5);
+  constructor() { super("ShopScene"); }
 
-  let startY = 95;
-  VEHICLES.forEach((v, index) => {
-   let row = Math.floor(index / 2); let col = index % 2;
-   let x = col === 0 ? 210 : 590; let y = startY + (row * 74);
-   this.add.image(x - 110, y + 20, "vehicle_" + v.id).setScale(0.4);
-   this.add.text(x - 50, y, v.name, { fontSize: "14px", color: "#fff", fontStyle: "bold" });
+  create() {
+    this.cameras.main.setBackgroundColor("#29452b");
 
-   if (unlocked[v.id]) {
-    if (selectedVehicle === v.id) {
-     this.add.text(x - 50, y + 22, "Equipado", { fontSize: "14px", color: "#4caf50", fontStyle: "bold" });
-    } else {
-button(this, x, y + 30, "EQUIPAR", () => { selectedVehicle = v.id; saveData(); this.scene.restart(); }, { size: "12px", bg: "#1976d2", pad: 8 });
+    addText(this, 400, 27, "GARAGEM DE VEÍCULOS", 29);
+    addText(this, 400, 60, "🪙 Suas moedas: " + coins, 20);
+
+    vehicles.forEach((v, i) => {
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const x = 140 + col * 260;
+      const y = 125 + row * 112;
+      const isUnlocked = unlocked.includes(i);
+      const isSelected = selected === i;
+
+      const panel = this.add.rectangle(
+        x, y, 225, 98, isSelected ? 0x497f3c : 0x405342
+      ).setStrokeStyle(2, isSelected ? 0xffdf55 : 0x9eb49e);
+
+      this.add.image(x - 64, y - 6, "vehicle" + i).setScale(0.57);
+      addText(this, x + 30, y - 29, v.name, 13);
+
+      let label;
+      if (isSelected) {
+        label = "EQUIPADO";
+      } else if (isUnlocked) {
+        label = "EQUIPAR";
+      } else {
+        label = "COMPRAR " + v.price + " 🪙";
+      }
+
+      const btn = this.add.rectangle(x + 27, y + 20, 116, 30, 0x2f8d43)
+        .setInteractive({ useHandCursor: true });
+      const btnText = addText(this, x + 27, y + 20, label, 11);
+
+      btn.on("pointerdown", () => {
+        if (unlocked.includes(i)) {
+          selected = i;
+          saveProgress();
+          this.scene.restart();
+        } else if (coins >= v.price) {
+          coins -= v.price;
+          unlocked.push(i);
+          selected = i;
+          saveProgress();
+          this.scene.restart();
+        } else {
+          btn.setFillStyle(0xb53a30);
+          btnText.setText("FALTAM MOEDAS");
+          this.time.delayedCall(900, () => {
+            if (btnText.active) btnText.setText(label);
+            if (btn.active) btn.setFillStyle(0x2f8d43);
+          });
+        }
+      });
+    });
+
+    makeButton(this, 400, 555, "VOLTAR AO MENU", () => {
+      this.scene.start("MenuScene");
+    }, 230);
+  }
 }
-} else {
-button(this, x, y + 30, COMPRAR 💰${v.price}, () => {
-if (totalCoins >= v.price) { totalCoins -= v.price; unlocked[v.id] = true; selectedVehicle = v.id; sound("buy"); saveData(); this.scene.restart(); } else { alert("Moedas insuficientes!"); }
-}, { size: "12px", bg: "#d32f2f", pad: 8 });
-}
-});
-button(this, 400, 560, "⬅ VOLTAR AO MENU", () => this.scene.start("MenuScene"), { bg: "#555", size: "16px" });
-}
-}
+
 class GameScene extends Phaser.Scene {
-constructor() { super("GameScene"); }
-create() {
-score = 0; coins = 0; lives = 3; gameSpeed = 230; gameOver = false; paused = false; jumpsUsed = 0;
-lastGroundX = 0; lastGroundY = 460; lastObstacleX = 600; lastOverheadX = 1200; currentBiome = -1;
-sceneryGroup = [];
-this.cameras.main.setBackgroundColor("#78c9f2");
-groundPieces = this.physics.add.group();
-obstacles = this.physics.add.group();
-overheadObstacles = this.physics.add.group();
-coinsGroup = this.physics.add.group();
-for (let i = 0; i < 10; i++) { this.spawnGround(); }
-let vInfo = VEHICLES.find(v => v.id === selectedVehicle) || VEHICLES;
-tractor = this.physics.add.sprite(220, 300, "vehicle_" + vInfo.id);
-tractor.setGravityY(1100).setBodySize(110, 85).setOffset(25, 15).setDepth(2);
-trailer = this.physics.add.sprite(110, 300, "trailer");
-trailer.setGravityY(1100).setBodySize(95, 60).setOffset(10, 10).setDepth(1);
-this.physics.add.collider(tractor, groundPieces, () => { if (!gameOver) jumpsUsed = 0; });
-this.physics.add.collider(trailer, groundPieces);
-this.physics.add.collider(obstacles, groundPieces);
-this.physics.add.overlap(tractor, coinsGroup, this.collectCoin, null, this);
-this.physics.add.overlap(trailer, coinsGroup, this.collectCoin, null, this);
-this.physics.add.overlap(tractor, obstacles, this.hitObstacle, null, this);
-this.physics.add.overlap(tractor, overheadObstacles, this.hitObstacle, null, this);
-scoreText = this.add.text(20, 20, "Distância: 0 m", { fontSize: "20px", color: "#000", fontStyle: "bold" });
-coinsText = this.add.text(20, 50, "Moedas: 0", { fontSize: "20px", color: "#d8a83e", fontStyle: "bold" });
-livesText = this.add.text(20, 80, "❤️ Vidas: 3", { fontSize: "20px", color: "#b8332c", fontStyle: "bold" });
-speedText = this.add.text(20, 110, "Velocidade: 100%", { fontSize: "15px", color: "#555", fontStyle: "bold" });
-biomeText = this.add.text(400, 25, "Bioma: Fazenda Padrão", { fontSize: "18px", color: "#fff", fontStyle: "bold", backgroundColor: "#00000055", padding: 5 }).setOrigin(0.5);
-let bSize = jumpButtonSize;
-jumpButton = this.add.rectangle(710, 510, 120 * bSize, 120 * bSize, 0xffffff, 0.4).setInteractive({ useHandCursor: true }).on("pointerdown", () => this.handleJump());
-this.add.text(710, 510, "PULAR", { fontSize: Math.round(16 * bSize) + "px", fontStyle: "bold", color: "#000" }).setOrigin(0.5);
-pauseBtn = button(this, 750, 35, "⏸", () => this.togglePause(), { bg: "#607d8b", pad: 10 });
-this.input.keyboard.on("keydown-SPACE", () => this.handleJump());
-this.input.keyboard.on("keydown-UP", () => this.handleJump());
-pauseLayer = this.add.container(0, 0).setVisible(false).setDepth(10);
-let bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.6).setInteractive();
-let pText = this.add.text(400, 220, "JOGO PAUSADO", { fontSize: "34px", fontStyle: "bold", color: "#fff" }).setOrigin(0.5);
-let btnResume = button(this, 400, 300, "CONTINUAR", () => this.togglePause(), { size: "20px" });
-let btnMenu = button(this, 400, 370, "MENU PRINCIPAL", () => { this.togglePause(); this.scene.start("MenuScene"); }, { size: "18px", bg: "#555" });
-pauseLayer.add([bg, pText, btnResume, btnMenu]);
+  constructor() { super("GameScene"); }
+
+  create() {
+    this.score = 0;
+    this.collected = 0;
+    this.lives = 3;
+    this.speed = 280;
+    this.jumpCount = 0;
+    this.paused = false;
+    this.gameOver = false;
+    this.biome = 0;
+    this.lastObstacleTime = 0;
+    this.lastCoinTime = 0;
+    this.lastBiomeChange = 0;
+    this.lastGroundX = 0;
+
+    this.cameras.main.setBackgroundColor("#8bd6f5");
+
+    this.sky = this.add.rectangle(400, 300, 800, 600, 0x8bd6f5);
+    this.hills = this.add.rectangle(400, 430, 800, 170, 0x75b74a);
+    this.add.rectangle(400, 475, 800, 35, 0x4d9e34);
+
+    this.trees = this.add.group();
+    for (let i = 0; i < 9; i++) {
+      this.trees.add(
+        this.add.image(i * 110, 390, "tree").setScale(0.7).setAlpha(0.9)
+      );
+    }
+
+    this.grounds = this.physics.add.staticGroup();
+    for (let i = 0; i < 11; i++) {
+      const ground = this.grounds.create(i * 128 + 64, 540, "ground");
+      ground.refreshBody();
+      this.lastGroundX = ground.x + 64;
+    }
+
+    this.player = this.physics.add.sprite(220, 390, "vehicle" + selected);
+    this.player.setScale(0.75);
+    this.player.setCollideWorldBounds(true);
+    this.player.body.setSize(105, 58);
+    this.player.body.setOffset(20, 48);
+    this.player.setDepth(5);
+    this.physics.add.collider(this.player, this.grounds, () => {
+      this.jumpCount = 0;
+    });
+
+    this.obstacles = this.physics.add.group();
+    this.coinsGroup = this.physics.add.group();
+
+    this.physics.add.overlap(
+      this.player, this.obstacles, this.hitObstacle, null, this
+    );
+
+    this.physics.add.overlap(
+      this.player, this.coinsGroup, this.collectCoin, null, this
+    );
+
+    this.scoreText = addText(this, 110, 28, "Pontos: 0", 20).setScrollFactor(0);
+    this.coinText = addText(this, 365, 28, "🪙 0", 20).setScrollFactor(0);
+    this.livesText = addText(this, 560, 28, "❤️ 3", 20).setScrollFactor(0);
+    this.biomeText = addText(this, 400, 65, "CAMPO", 16).setScrollFactor(0);
+
+    this.pauseButton = this.add.rectangle(750, 30, 70, 40, 0x355b35)
+      .setScrollFactor(0)
+      .setInteractive({ useHandCursor: true });
+    addText(this, 750, 30, "Ⅱ", 25).setScrollFactor(0);
+    this.pauseButton.on("pointerdown", () => this.togglePause());
+
+    this.input.keyboard.on("keydown-SPACE", () => this.jump());
+    this.input.keyboard.on("keydown-UP", () => this.jump());
+    this.input.keyboard.on("keydown-W", () => this.jump());
+    this.input.on("pointerdown", (pointer) => {
+      if (pointer.y > 75 && !this.gameOver && !this.paused) this.jump();
+    });
+
+    this.physics.world.setBounds(0, 0, 800, 600);
+    this.physics.resume();
+  }
+
+  jump() {
+    if (this.gameOver || this.paused) return;
+
+    if (this.jumpCount < 2) {
+      this.player.setVelocityY(this.jumpCount === 0 ? -470 : -430);
+      this.jumpCount++;
+    }
+  }
+
+  spawnObstacle(time) {
+    const type = Phaser.Math.Between(0, 2);
+    let key = "rock";
+    let scale = 1;
+    let y = 451;
+
+    if (type === 1) {
+      key = "hay";
+      scale = 0.9;
+      y = 450;
+    }
+
+    if (type === 2 && this.biome === 1) {
+      key = "branch";
+      scale = 0.9;
+      y = 432;
+    }
+
+    const obstacle = this.obstacles.create(860, y, key);
+    obstacle.setScale(scale);
+    obstacle.setImmovable(true);
+    obstacle.body.allowGravity = false;
+    obstacle.body.setVelocityX(-this.speed);
+
+    if (key === "rock") {
+      obstacle.body.setSize(45, 35);
+      obstacle.body.setOffset(7, 12);
+    } else if (key === "hay") {
+      obstacle.body.setSize(48, 40);
+      obstacle.body.setOffset(6, 5);
+    } else {
+      obstacle.body.setSize(65, 17);
+      obstacle.body.setOffset(8, 16);
+    }
+
+    obstacle.setData("passed", false);
+    this.lastObstacleTime = time;
+  }
+
+  spawnCoin() {
+    const coin = this.coinsGroup.create(
+      860, Phaser.Math.Between(320, 405), "coin"
+    );
+    coin.setScale(0.75);
+    coin.body.allowGravity = false;
+    coin.setImmovable(true);
+    coin.body.setVelocityX(-this.speed);
+    coin.body.setCircle(15);
+    this.lastCoinTime = this.time.now;
+  }
+
+  collectCoin(player, coin) {
+    if (!coin.active) return;
+
+    coin.destroy();
+    this.collected++;
+    coins++;
+    save.set("coins", coins);
+    this.coinText.setText("🪙 " + this.collected);
+  }
+
+  hitObstacle(player, obstacle) {
+    if (this.gameOver || this.paused || !obstacle.active) return;
+
+    obstacle.destroy();
+    this.lives--;
+    this.livesText.setText("❤️ " + this.lives);
+
+    this.player.setTint(0xff7777);
+    this.time.delayedCall(350, () => {
+      if (this.player && this.player.active) this.player.clearTint();
+    });
+
+    if (this.lives <= 0) {
+      this.endGame();
+    }
+  }
+
+  togglePause() {
+    if (this.gameOver) return;
+
+    this.paused = !this.paused;
+
+    if (this.paused) {
+      this.physics.pause();
+      this.add.rectangle(400, 300, 800, 600, 0x000000, 0.65)
+        .setName("pauseOverlay").setDepth(20);
+
+      addText(this, 400, 235, "JOGO PAUSADO", 34).setName("pauseTitle").setDepth(21);
+
+      makeButton(this, 400, 310, "CONTINUAR", () => {
+        this.children.list
+          .filter(c => c.name === "pauseOverlay" || c.name === "pauseTitle")
+          .forEach(c => c.destroy());
+
+        this.children.list
+          .filter(c => c.name === "pauseButtonTemp")
+          .forEach(c => c.destroy());
+
+        this.paused = false;
+        this.physics.resume();
+      }).bg.setDepth(22);
+    } else {
+      this.physics.resume();
+    }
+  }
+
+  changeBiome(time) {
+    if (time - this.lastBiomeChange < 18000) return;
+
+    this.lastBiomeChange = time;
+    this.biome = (this.biome + 1) % 4;
+
+    const colors = [0x8bd6f5, 0x9ac5a0, 0xffb66b, 0x8b9cbd];
+    const hillColors = [0x75b74a, 0x47784a, 0xa77b48, 0x687b91];
+    const names = ["CAMPO", "FLORESTA", "DESERTO", "MONTANHAS"];
+
+    this.sky.setFillStyle(colors[this.biome]);
+    this.hills.setFillStyle(hillColors[this.biome]);
+    this.biomeText.setText(names[this.biome]);
+
+    this.trees.getChildren().forEach(tree => {
+      if (this.biome === 1) {
+        tree.setScale(1.05);
+        tree.setAlpha(1);
+      } else if (this.biome === 2) {
+        tree.setScale(0.45);
+        tree.setAlpha(0.65);
+      } else if (this.biome === 3) {
+        tree.setScale(0.8);
+        tree.setAlpha(0.5);
+      } else {
+        tree.setScale(0.7);
+        tree.setAlpha(0.9);
+      }
+    });
+  }
+
+  endGame() {
+    if (this.gameOver) return;
+    this.gameOver = true;
+    this.physics.pause();
+
+    const finalScore = Math.floor(this.score);
+    if (finalScore > record) {
+      record = finalScore;
+    }
+
+    coins += Math.floor(this.collected / 2);
+    saveProgress();
+
+    this.add.rectangle(400, 300, 800, 600, 0x000000, 0.72).setDepth(30);
+    addText(this, 400, 175, "FIM DE JOGO!", 40).setDepth(31);
+    addText(this, 400, 235, "Pontos: " + finalScore, 27).setDepth(31);
+    addText(this, 400, 280, "Moedas coletadas: " + this.collected, 21).setDepth(31);
+    addText(this, 400, 320, "Recorde: " + record, 22).setDepth(31);
+
+    makeButton(this, 400, 395, "JOGAR NOVAMENTE", () => {
+      this.scene.restart();
+    }).bg.setDepth(32);
+
+    makeButton(this, 400, 455, "VOLTAR AO MENU", () => {
+      this.scene.start("MenuScene");
+    }).bg.setDepth(32);
+  }
+
+  update(time, delta) {
+    if (this.gameOver || this.paused) return;
+
+    const dt = delta / 1000;
+    this.score += dt * 10;
+    this.speed = Math.min(280 + this.score * 0.35, 520);
+
+    this.scoreText.setText("Pontos: " + Math.floor(this.score));
+
+    // Movimento contínuo do cenário
+    this.lastGroundX -= this.speed * dt;
+
+    this.grounds.getChildren().forEach(ground => {
+      ground.x -= this.speed * dt;
+      ground.refreshBody();
+
+      if (ground.x < -80) {
+        ground.destroy();
+      }
+    });
+
+    while (this.lastGroundX < 900) {
+      const ground = this.grounds.create(
+        this.lastGroundX + 64, 540, "ground"
+      );
+      ground.refreshBody();
+      this.lastGroundX += 128;
+    }
+
+    this.trees.getChildren().forEach(tree => {
+      tree.x -= this.speed * 0.25 * dt;
+      if (tree.x < -70) tree.x = 870;
+    });
+
+    this.obstacles.getChildren().forEach(obstacle => {
+      obstacle.body.setVelocityX(-this.speed);
+      if (obstacle.x < -100) obstacle.destroy();
+    });
+
+    this.coinsGroup.getChildren().forEach(coin => {
+      coin.body.setVelocityX(-this.speed);
+      coin.rotation += dt * 2;
+      if (coin.x < -60) coin.destroy();
+    });
+
+    if (time - this.lastObstacleTime > Phaser.Math.Between(1900, 2900)) {
+      this.spawnObstacle(time);
+    }
+
+    if (time - this.lastCoinTime > 1500) {
+      this.spawnCoin();
+    }
+
+    this.changeBiome(time);
+
+    // Mantém o pulo dentro dos limites
+    if (this.player.y > 570) {
+      this.endGame();
+    }
+  }
 }
-update(time, delta) {
-if (gameOver || paused) return;
-score += (delta / 1000) * (gameSpeed / 150);
-scoreText.setText("Distância: " + Math.floor(score) + " m");
-if (Math.floor(score) % 150 === 0 && Math.floor(score) > 0) {
-gameSpeed = Math.min(500, 230 + Math.floor(score / 150) * 15);
-speedText.setText("Velocidade: " + Math.round((gameSpeed / 230) * 100) + "%");
-}
-let biomeId = Math.floor(score / 300) % 4;
-if (biomeId !== currentBiome) { currentBiome = biomeId; this.changeBiome(currentBiome); }
-let tDist = tractor.x - 110 - trailer.x;
-trailer.setVelocityX(tDist * 5);
-if (Math.abs(tractor.y - trailer.y) > 80 && tractor.body.touching.down) {
-trailer.y = tractor.y;
-}
-groundPieces.children.each(g => {
-g.x -= (gameSpeed * delta) / 1000;
-g.body.updateFromGameObject();
-if (g.x < -100) { groundPieces.remove(g, true, true); }
-});
-if (lastGroundX < 900) { this.spawnGround(); }
-sceneryGroup.forEach((s, idx) => {
-s.x -= (gameSpeed * 0.4 * delta) / 1000;
-if (s.x < -200) { s.destroy(); sceneryGroup.splice(idx, 1); }
-});
-if (Phaser.Math.Between(0, 100) < 2) { this.spawnScenery(); }
-obstacles.children.each(o => {
-o.x -= (gameSpeed * delta) / 1000;
-if (o.x < -150) { obstacles.remove(o, true, true); }
-});
-overheadObstacles.children.each(o => {
-o.x -= (gameSpeed * delta) / 1000;
-if (o.x < -100) { overheadObstacles.remove(o, true, true); }
-});
-coinsGroup.children.each(c => {
-c.x -= (gameSpeed * delta) / 1000;
-if (c.x < -100) { coinsGroup.remove(c, true, true); }
-});
-if (time > lastObstacleX) {
-this.spawnObstacle();
-lastObstacleX = time + Phaser.Math.Between(1500, 3000) - (gameSpeed * 1.2);
-}
-if (time > lastOverheadX && currentBiome === 1) {
-this.spawnOverheadObstacle();
-lastOverheadX = time + Phaser.Math.Between(2500, 4500);
-}
-if (tractor.y > 650 || trailer.y > 650) { this.triggerGameOver(); }
-}
-handleJump() {
-if (gameOver || paused) return;
-if (jumpsUsed < MAX_JUMPS) { tractor.setVelocityY(-430); jumpsUsed++; sound("jump"); }
-}
-togglePause() {
-if (gameOver) return;
-paused = !paused;
-if (paused) { this.physics.pause(); pauseLayer.setVisible(true); }
-else { this.physics.resume(); pauseLayer.setVisible(false); }
-}
-changeBiome(id) {
-let names = ["Fazenda Padrão", "Floresta de Árvores", "Plantação de Milho", "Cercados e Celeiros"];
-let colors = ["#78c9f2", "#5c9bc0", "#4fa885", "#70b560"];
-biomeText.setText("Bioma: " + names[id]);
-this.cameras.main.setBackgroundColor(colors[id]);
-}
-spawnGround() {
-let nextY = lastGroundY;
-if (Phaser.Math.Between(0, 10) < 4) {
-let change = Phaser.Math.Between(-25, 25);
-nextY = Phaser.Math.Clamp(lastGroundY + change, 400, 530);
-}
-let g = groundPieces.create(lastGroundX + 60, nextY + 60, "ground");
-g.body.setAllowGravity(false).setImmovable(true);
-lastGroundX = g.x + 60;
-lastGroundY = nextY;
-}
-spawnScenery() {
-let types = ["tree", "barn", "crop", "fence"];
-let weights =;
-if (currentBiome === 0) weights =;
-if (currentBiome === 1) weights =;
-if (currentBiome === 2) weights =;
-if (currentBiome === 3) weights =;
-let type = types[weights[Phaser.Math.Between(0, 3)]];
-let asset = this.add.image(850, lastGroundY + 15, type).setOrigin(0.5, 1).setDepth(-1);
-sceneryGroup.push(asset);
-}
-spawnObstacle() {
-let obsTypes = ["rock", "hay", "bighay"];
-let type = Phaser.Math.RND.pick(obsTypes);
-let hOffset = type === "bighay" ? 45 : 25;
-let obs = obstacles.create(850, lastGroundY + 15 - hOffset, type);
-if (obs) {
-obs.body.setAllowGravity(false).setImmovable(true);
-obs.typeKey = type;
-if (Phaser.Math.Between(0, 10) < 6) { this.spawnCoinsAbove(850, lastGroundY - 80); }
-}
-}
-spawnOverheadObstacle() {
-let obs = overheadObstacles.create(850, Phaser.Math.Between(220, 300), "branch");
-if (obs) { obs.body.setAllowGravity(false).setImmovable(true); }
-}
-spawnCoinsAbove(x, y) {
-let count = Phaser.Math.Between(2, 4);
-for (let i = 0; i < count; i++) {
-let c = coinsGroup.create(x + (i * 35), y, "coin");
-c.body.setAllowGravity(false);
-}
-}
-collectCoin(v, coin) {
-coinsGroup.remove(coin, true, true); coins++; totalCoins++; sound("coin");
-coinsText.setText("Moedas: " + coins); saveData();
-}
-hitObstacle(player, obstacle) {
-if (obstacle.typeKey === "bighay") {
-obstacles.remove(obstacle, true, true);
-sound("break");
-score += 10;
-this.cameras.main.shake(150, 0.01);
-return;
-}
-if (obstacle.hasHit) return;
-obstacle.hasHit = true;
-lives--; sound("hit"); livesText.setText("❤️ Vidas: " + lives);
-this.cameras.main.flash(200, 200, 50, 50);
-obstacles.remove(obstacle, true, true);
-if (lives <= 0) { this.triggerGameOver(); }
-}
-triggerGameOver() {
-gameOver = true; this.physics.pause();
-if (score > highScore) { highScore = Math.floor(score); saveData(); }
-this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7).setDepth(9);
-this.add.text(400, 180, "FIM DE JOGO!", { fontSize: "42px", fontStyle: "bold", color: "#ff3333" }).setOrigin(0.5).setDepth(9);
-this.add.text(400, 250, Pontuação: ${Math.floor(score)} m, { fontSize: "24px", color: "#fff" }).setOrigin(0.5).setDepth(9);
-this.add.text(400, 290, Moedas coletadas: +${coins}, { fontSize: "20px", color: "#ffd700" }).setOrigin(0.5).setDepth(9);
-button(this, 400, 390, "🔄 JOGAR DE NOVO", () => this.scene.restart(), { size: "20px" }).setDepth(9);
-button(this, 400, 455, "🏠 MENU PRINCIPAL", () => this.scene.start("MenuScene"), { size: "16px", bg: "#555" }).setDepth(9);
-}
-}
+
 const config = {
-type: Phaser.AUTO,
-width: 800,
-height: 600,
-physics: { default: "arcade", arcade: { gravity: { y: 0 }, debug: false } },
-scene: [MenuScene, GameScene, ShopScene]
+  type: Phaser.AUTO,
+  parent: "game",
+  width: W,
+  height: H,
+  backgroundColor: "#8bd6f5",
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  physics: {
+    default: "arcade",
+    arcade: {
+      gravity: { y: 1150 },
+      debug: false
+    }
+  },
+  scene: [BootScene, MenuScene, ShopScene, GameScene]
 };
-const game = new Phaser.Game(config);
+
+new Phaser.Game(config);
+</script>
+</body>
+</html>
