@@ -3,55 +3,149 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Jogo do Trator Infinito</title>
 
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
 
 <style>
-*{box-sizing:border-box}
-body{
-  margin:0;background:#17251a;color:white;
-  font-family:Arial,sans-serif;overflow:hidden;
-  touch-action:manipulation
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #17251a;
+  color: white;
+  font-family: Arial, sans-serif;
+  touch-action: manipulation;
 }
-#topo{
-  min-height:52px;background:#203d25;
-  display:flex;align-items:center;justify-content:space-around;
-  gap:5px;padding:6px;flex-wrap:wrap
+
+#topo {
+  min-height: 52px;
+  background: #203d25;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 5px;
+  padding: 6px;
+  flex-wrap: wrap;
 }
-button{
-  border:2px solid #d8e7c5;border-radius:9px;
-  background:#376b35;color:white;padding:9px 11px;
-  font-weight:bold;font-size:13px;cursor:pointer
+
+button {
+  border: 2px solid #d8e7c5;
+  border-radius: 9px;
+  background: #376b35;
+  color: white;
+  padding: 9px 11px;
+  font-weight: bold;
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
 }
-button:active{transform:scale(.96)}
-#game{width:100%;height:calc(100dvh - 120px);min-height:250px}
-#game canvas{display:block;margin:auto;max-width:100%;max-height:100%}
-#baixo{
-  height:68px;display:flex;justify-content:center;
-  align-items:center;gap:12px;background:#203d25
+
+button:active { transform: scale(.97); }
+
+#game {
+  width: 100%;
+  height: calc(100dvh - 120px);
+  min-height: 220px;
+  position: relative;
+  overflow: hidden;
 }
-#pular{font-size:20px;background:#d59a26;color:#171717;
-  min-width:125px;height:52px}
-#frear{background:#a8392c;min-width:85px;height:48px}
-#painel{
-  display:none;position:fixed;inset:0;z-index:10;
-  background:#101b10ed;overflow:auto;padding:15px;
-  text-align:center
+
+#game canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
-#painel h2{color:#f0d36b}
-#itens{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:10px;max-width:650px;margin:15px auto
+
+#baixo {
+  height: 68px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  background: #203d25;
 }
-.item{
-  background:#29452d;border:1px solid #829e70;
-  padding:12px;border-radius:12px
+
+#pular {
+  font-size: 20px;
+  background: #d59a26;
+  color: #171717;
+  min-width: 125px;
+  height: 52px;
 }
-.item button{margin-top:8px}
-#fechar{margin:12px}
-.pequeno{font-size:12px;color:#d7e2d0}
+
+#frear {
+  background: #a8392c;
+  min-width: 85px;
+  height: 48px;
+}
+
+#painel, #fim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: #101b10f5;
+  overflow-y: auto;
+  padding: 15px;
+  text-align: center;
+}
+
+#painel h2, #fim h2 { color: #f0d36b; }
+
+#itens {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 700px;
+  margin: 15px auto;
+}
+
+.item {
+  background: #29452d;
+  border: 1px solid #829e70;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.item button { margin-top: 8px; }
+
+#fechar { margin: 12px; }
+
+.pequeno {
+  font-size: 12px;
+  color: #d7e2d0;
+}
+
+#fim {
+  z-index: 20;
+  background: #101b10eF;
+  align-content: center;
+}
+
+#fim button {
+  font-size: 17px;
+  padding: 14px 22px;
+  background: #d59a26;
+  color: #171717;
+}
+
+@media (max-width: 420px) {
+  #topo button {
+    font-size: 11px;
+    padding: 8px;
+  }
+
+  #itens { grid-template-columns: 1fr; }
+
+  #baixo { gap: 8px; }
+
+  #pular { min-width: 120px; }
+}
 </style>
 </head>
 
@@ -60,7 +154,7 @@ button:active{transform:scale(.96)}
 <div id="topo">
   <button onclick="abrirGaragem()">🚜 Garagem</button>
   <button onclick="abrirCarreta()">🛒 Carreta</button>
-  <button onclick="pausar()">⏸ Pausar</button>
+  <button id="botaoPausa" onclick="pausar()">⏸ Pausar</button>
   <span>🪙 <b id="moedas">0</b></span>
   <span>❤️ <b id="vidas">3</b></span>
   <span>🏆 <b id="recorde">0</b></span>
@@ -69,7 +163,7 @@ button:active{transform:scale(.96)}
 <div id="game"></div>
 
 <div id="baixo">
-  <button id="frear" onclick="frear()">FREAR</button>
+  <button id="frear">FREAR</button>
   <button id="pular">⬆ PULAR</button>
 </div>
 
@@ -80,489 +174,1095 @@ button:active{transform:scale(.96)}
   <button id="fechar" onclick="fecharPainel()">VOLTAR AO JOGO</button>
 </div>
 
+<div id="fim">
+  <h2>🚜 FIM DE JOGO</h2>
+  <p id="resultadoFim"></p>
+  <button onclick="reiniciarJogo()">JOGAR NOVAMENTE</button>
+</div>
+
 <script>
+"use strict";
+
+/* ========================================
+   SALVAMENTO
+======================================== */
+
 const salvar = {
   ler(chave, padrao) {
     try {
-      const v = localStorage.getItem(chave);
-      return v === null ? padrao : JSON.parse(v);
-    } catch(e) { return padrao; }
+      const valor = localStorage.getItem(chave);
+      return valor === null ? padrao : JSON.parse(valor);
+    } catch (e) {
+      return padrao;
+    }
   },
+
   gravar(chave, valor) {
-    try { localStorage.setItem(chave, JSON.stringify(valor)); }
-    catch(e) {}
+    try {
+      localStorage.setItem(chave, JSON.stringify(valor));
+    } catch (e) {}
   }
 };
 
-let moedas = salvar.ler("trator_moedas", 0);
-let recorde = salvar.ler("trator_recorde", 0);
-let carretaComprada = salvar.ler("trator_carreta", false);
-let carretaEngatada = salvar.ler("trator_carreta_engatada", false);
-let selecionado = salvar.ler("trator_veiculo", 0);
+let moedas = Math.max(0, Number(salvar.ler("trator_moedas", 0)) || 0);
+let recorde = Math.max(0, Number(salvar.ler("trator_recorde", 0)) || 0);
+
+let carretaComprada = salvar.ler("trator_carreta", false) === true;
+let carretaEngatada = salvar.ler("trator_carreta_engatada", false) === true;
+
+const veiculos = [
+  { nome: "Trator Verde", tipo: "trator", cor: 0x329447, preco: 0 },
+  { nome: "Trator Vermelho", tipo: "trator", cor: 0xc93830, preco: 150 },
+  { nome: "Trator Azul", tipo: "trator", cor: 0x287bc0, preco: 250 },
+  { nome: "Trator Amarelo", tipo: "trator", cor: 0xe6b92c, preco: 350 },
+  { nome: "Trator Rural", tipo: "trator", cor: 0x7a9b36, preco: 450 },
+  { nome: "Trator Premium", tipo: "trator", cor: 0xe5e5e5, preco: 600 },
+
+  { nome: "Moto de Trilha", tipo: "moto", cor: 0xd92f25, preco: 0 },
+  { nome: "Moto Azul", tipo: "moto", cor: 0x298bd1, preco: 180 },
+  { nome: "Moto Verde", tipo: "moto", cor: 0x40b95a, preco: 280 },
+  { nome: "Moto Amarela", tipo: "moto", cor: 0xe5bd2c, preco: 380 },
+  { nome: "Moto Racing", tipo: "moto", cor: 0xececec, preco: 500 },
+  { nome: "Moto Especial", tipo: "moto", cor: 0xa33bd0, preco: 650 }
+];
+
+let selecionado = Number(salvar.ler("trator_veiculo", 0));
+if (!Number.isInteger(selecionado) ||
+    selecionado < 0 || selecionado >= veiculos.length) {
+  selecionado = 0;
+}
+
+let comprados = salvar.ler("trator_comprados", [0, 6]);
+
+if (!Array.isArray(comprados)) comprados = [0, 6];
+
+comprados = comprados.filter(i =>
+  Number.isInteger(i) && i >= 0 && i < veiculos.length
+);
+
+if (!comprados.includes(0)) comprados.push(0);
+if (!comprados.includes(6)) comprados.push(6);
+
+if (!comprados.includes(selecionado)) selecionado = 0;
+
 let jogoPausado = false;
 let painelAberto = false;
+let jogoEncerrado = false;
+let freando = false;
 let distancia = 0;
 let vidas = 3;
 let pulos = 0;
-let velocidade = 300;
 let invencivel = 0;
-let proximoObstaculo = 0;
-let proximaMoeda = 0;
-let freando = false;
-let jogoEncerrado = false;
+let sceneJogo = null;
+let temporizadorFreio = null;
 
-const veiculos = [
- {nome:"Trator Verde",tipo:"trator",cor:0x329447,preco:0},
- {nome:"Trator Vermelho",tipo:"trator",cor:0xc93830,preco:150},
- {nome:"Trator Azul",tipo:"trator",cor:0x287bc0,preco:250},
- {nome:"Trator Amarelo",tipo:"trator",cor:0xe6b92c,preco:350},
- {nome:"Trator Rural",tipo:"trator",cor:0x7a9b36,preco:450},
- {nome:"Trator Premium",tipo:"trator",cor:0xe5e5e5,preco:600},
- {nome:"Moto de Trilha",tipo:"moto",cor:0xd92f25,preco:0},
- {nome:"Moto Azul",tipo:"moto",cor:0x298bd1,preco:180},
- {nome:"Moto Verde",tipo:"moto",cor:0x40b95a,preco:280},
- {nome:"Moto Amarela",tipo:"moto",cor:0xe5bd2c,preco:380},
- {nome:"Moto Racing",tipo:"moto",cor:0xececec,preco:500},
- {nome:"Moto Especial",tipo:"moto",cor:0xa33bd0,preco:650}
-];
-
-let comprados = salvar.ler("trator_comprados", [0,6]);
-
-function atualizarHUD(){
- document.getElementById("moedas").textContent=moedas;
- document.getElementById("vidas").textContent=vidas;
- document.getElementById("recorde").textContent=recorde;
+function guardar() {
+  salvar.gravar("trator_moedas", moedas);
+  salvar.gravar("trator_recorde", recorde);
+  salvar.gravar("trator_carreta", carretaComprada);
+  salvar.gravar("trator_carreta_engatada", carretaEngatada);
+  salvar.gravar("trator_veiculo", selecionado);
+  salvar.gravar("trator_comprados", comprados);
 }
 
-function guardar(){
- salvar.gravar("trator_moedas",moedas);
- salvar.gravar("trator_recorde",recorde);
- salvar.gravar("trator_carreta",carretaComprada);
- salvar.gravar("trator_carreta_engatada",carretaEngatada);
- salvar.gravar("trator_veiculo",selecionado);
- salvar.gravar("trator_comprados",comprados);
+function atualizarHUD() {
+  document.getElementById("moedas").textContent = moedas;
+  document.getElementById("vidas").textContent = vidas;
+  document.getElementById("recorde").textContent = recorde;
 }
 
-function abrirPainel(titulo,descricao){
- painelAberto=true;
- jogoPausado=true;
- document.getElementById("painel").style.display="block";
- document.getElementById("tituloPainel").textContent=titulo;
- document.getElementById("descricaoPainel").textContent=descricao||"";
- document.getElementById("itens").innerHTML="";
+function atualizarPausa() {
+  document.getElementById("botaoPausa").textContent =
+    jogoPausado ? "▶ Continuar" : "⏸ Pausar";
 }
 
-function adicionarItem(nome,descricao,acao,texto){
- const div=document.createElement("div");
- div.className="item";
- const h=document.createElement("b");
- h.textContent=nome;
- const p=document.createElement("p");
- p.textContent=descricao;
- const b=document.createElement("button");
- b.textContent=texto;
- b.onclick=acao;
- div.append(h,p,b);
- document.getElementById("itens").appendChild(div);
+/* ========================================
+   GARAGEM E CARRETA
+======================================== */
+
+function abrirPainel(titulo, descricao) {
+  if (jogoEncerrado) return;
+
+  painelAberto = true;
+  jogoPausado = true;
+
+  if (sceneJogo) sceneJogo.physics.world.pause();
+
+  atualizarPausa();
+
+  document.getElementById("painel").style.display = "block";
+  document.getElementById("tituloPainel").textContent = titulo;
+  document.getElementById("descricaoPainel").textContent = descricao || "";
+  document.getElementById("itens").innerHTML = "";
 }
 
-function abrirGaragem(){
- abrirPainel("🚜 GARAGEM","Escolha seu veículo. Os preços são pagos com moedas do jogo.");
- veiculos.forEach((v,i)=>{
-   const tem=comprados.includes(i);
-   const atual=selecionado===i;
-   adicionarItem(
-     v.nome,
-     (v.tipo==="trator"?"Trator agrícola":"Moto de trilha")+" • "+
-     (v.preco===0?"Inicial":v.preco+" moedas"),
-     ()=>{
-       if(!comprados.includes(i)){
-         if(moedas<v.preco){alert("Você não tem moedas suficientes!");return;}
-         moedas-=v.preco;
-         comprados.push(i);
-       }
-       selecionado=i;
-       if(v.tipo==="moto")carretaEngatada=false;
-       guardar();atualizarHUD();abrirGaragem();
-     },
-     atual?"SELECIONADO":tem?"USAR": "COMPRAR"
-   );
- });
+function adicionarItem(nome, descricao, acao, texto) {
+  const div = document.createElement("div");
+  div.className = "item";
+
+  const h = document.createElement("b");
+  h.textContent = nome;
+
+  const p = document.createElement("p");
+  p.textContent = descricao;
+
+  const b = document.createElement("button");
+  b.textContent = texto;
+  b.onclick = acao;
+
+  div.append(h, p, b);
+  document.getElementById("itens").appendChild(div);
 }
 
-function abrirCarreta(){
- abrirPainel("🛒 CARRETA","A carreta é um acessório separado, que acompanha o trator.");
- adicionarItem(
-   "Carreta rural vermelha",
-   "Preço: 250 moedas. Reboque decorativo que acompanha o trator durante a partida.",
-   ()=>{
-     if(carretaComprada){alert("Você já comprou a carreta!");return;}
-     if(moedas<250){alert("Você precisa de 250 moedas para comprar a carreta.");return;}
-     moedas-=250;carretaComprada=true;guardar();atualizarHUD();abrirCarreta();
-   },
-   carretaComprada?"COMPRADA":"COMPRAR • 250 🪙"
- );
- adicionarItem(
-   "Engatar / desengatar",
-   !carretaComprada?"Compre a carreta primeiro.":
-   selecionado===undefined?"Selecione um veículo.":
-   veiculos[selecionado].tipo!=="trator"?"Selecione um trator para usar a carreta.":
-   carretaEngatada?"A carreta está engatada.":"A carreta está desengatada.",
-   ()=>{
-     if(!carretaComprada){alert("Compre a carreta primeiro.");return;}
-     if(veiculos[selecionado].tipo!=="trator"){
-       alert("A carreta só pode ser engatada em um trator.");return;
-     }
-     carretaEngatada=!carretaEngatada;
-     guardar();abrirCarreta();
-   },
-   !carretaComprada?"BLOQUEADO":carretaEngatada?"DESENGATAR":"ENGATAR"
- );
+function abrirGaragem() {
+  abrirPainel(
+    "🚜 GARAGEM",
+    "Compre e escolha seu veículo usando as moedas conquistadas."
+  );
+
+  veiculos.forEach((v, i) => {
+    const tem = comprados.includes(i);
+    const atual = selecionado === i;
+
+    adicionarItem(
+      v.nome,
+      (v.tipo === "trator" ? "Trator agrícola" : "Moto de trilha") +
+      " • " + (v.preco === 0 ? "Inicial" : v.preco + " moedas"),
+
+      () => {
+        if (!comprados.includes(i)) {
+          if (moedas < v.preco) {
+            alert("Você não tem moedas suficientes!");
+            return;
+          }
+
+          moedas -= v.preco;
+          comprados.push(i);
+        }
+
+        selecionado = i;
+
+        if (v.tipo === "moto") carretaEngatada = false;
+
+        guardar();
+        atualizarHUD();
+        abrirGaragem();
+      },
+
+      atual ? "SELECIONADO" : tem ? "USAR" : "COMPRAR"
+    );
+  });
 }
 
-function fecharPainel(){
- document.getElementById("painel").style.display="none";
- painelAberto=false;
- jogoPausado=false;
- if(sceneJogo && sceneJogo.scene.isActive()){
-   sceneJogo.physics.world.resume();
- }
+function abrirCarreta() {
+  abrirPainel(
+    "🛒 CARRETA RURAL",
+    "Compre a carreta separadamente e engate-a no seu trator."
+  );
+
+  adicionarItem(
+    "Carreta vermelha",
+    "Reboque rural decorativo. Preço: 250 moedas.",
+
+    () => {
+      if (carretaComprada) {
+        alert("Você já comprou a carreta!");
+        return;
+      }
+
+      if (moedas < 250) {
+        alert("Você precisa de 250 moedas para comprar a carreta.");
+        return;
+      }
+
+      moedas -= 250;
+      carretaComprada = true;
+
+      guardar();
+      atualizarHUD();
+      abrirCarreta();
+    },
+
+    carretaComprada ? "COMPRADA" : "COMPRAR • 250 🪙"
+  );
+
+  let descricao;
+
+  if (!carretaComprada) {
+    descricao = "Compre a carreta primeiro.";
+  } else if (veiculos[selecionado].tipo !== "trator") {
+    descricao = "Selecione um trator na garagem.";
+  } else if (carretaEngatada) {
+    descricao = "A carreta está engatada no trator.";
+  } else {
+    descricao = "A carreta está desengatada.";
+  }
+
+  adicionarItem(
+    "Engatar / desengatar",
+    descricao,
+
+    () => {
+      if (!carretaComprada) {
+        alert("Compre a carreta primeiro.");
+        return;
+      }
+
+      if (veiculos[selecionado].tipo !== "trator") {
+        alert("A carreta só pode ser engatada em um trator.");
+        return;
+      }
+
+      carretaEngatada = !carretaEngatada;
+      guardar();
+      abrirCarreta();
+    },
+
+    !carretaComprada ? "BLOQUEADO" :
+      carretaEngatada ? "DESENGATAR" : "ENGATAR"
+  );
 }
 
-function pausar(){
- if(painelAberto)return;
- jogoPausado=!jogoPausado;
- if(sceneJogo){
-   if(jogoPausado)sceneJogo.physics.world.pause();
-   else sceneJogo.physics.world.resume();
- }
+function fecharPainel() {
+  document.getElementById("painel").style.display = "none";
+  painelAberto = false;
+
+  if (!jogoEncerrado) {
+    jogoPausado = false;
+
+    if (sceneJogo) sceneJogo.physics.world.resume();
+  }
+
+  atualizarPausa();
 }
 
-function frear(){freando=true;setTimeout(()=>freando=false,500)}
+function pausar() {
+  if (painelAberto || jogoEncerrado || !sceneJogo) return;
 
-document.getElementById("pular").addEventListener("pointerdown",e=>{
- e.preventDefault();
- if(sceneJogo)sceneJogo.pular();
+  jogoPausado = !jogoPausado;
+
+  if (jogoPausado) {
+    sceneJogo.physics.world.pause();
+  } else {
+    sceneJogo.physics.world.resume();
+  }
+
+  atualizarPausa();
+}
+
+/* ========================================
+   CONTROLES
+======================================== */
+
+function iniciarFreio() {
+  if (jogoPausado || jogoEncerrado) return;
+
+  freando = true;
+  clearTimeout(temporizadorFreio);
+  temporizadorFreio = setTimeout(() => {
+    freando = false;
+  }, 500);
+}
+
+document.getElementById("frear").addEventListener("pointerdown", e => {
+  e.preventDefault();
+  iniciarFreio();
 });
 
-let sceneJogo=null;
+document.getElementById("pular").addEventListener("pointerdown", e => {
+  e.preventDefault();
+  if (sceneJogo) sceneJogo.pular();
+});
 
-const config={
- type:Phaser.AUTO,
- parent:"game",
- backgroundColor:"#8fd5f2",
- scale:{
-   mode:Phaser.Scale.RESIZE,
-   autoCenter:Phaser.Scale.CENTER_BOTH,
-   width:900,height:500
- },
- physics:{
-   default:"arcade",
-   arcade:{gravity:{y:1000},debug:false}
- },
- scene:{preload,create,update}
+/* ========================================
+   CONFIGURAÇÃO DO PHASER
+======================================== */
+
+const config = {
+  type: Phaser.AUTO,
+  parent: "game",
+  backgroundColor: "#8fd5f2",
+
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: 900,
+    height: 500
+  },
+
+  physics: {
+    default: "arcade",
+    arcade: {
+      gravity: { y: 1000 },
+      debug: false
+    }
+  },
+
+  scene: {
+    create: criarJogo,
+    update: atualizarJogo
+  }
 };
 
-const game=new Phaser.Game(config);
+const game = new Phaser.Game(config);
 
-function preload(){}
+/* ========================================
+   INICIALIZAÇÃO DA PARTIDA
+======================================== */
 
-function create(){
- sceneJogo=this;
- this.chaoY=this.scale.height-75;
- this.fundo=this.add.graphics();
- this.chao=this.add.rectangle(
-   this.scale.width/2,this.chaoY+40,
-   this.scale.width+100,100,0x6c9b42
- );
- this.physics.add.existing(this.chao,true);
+function criarJogo() {
+  sceneJogo = this;
 
- this.jogador=this.physics.add.sprite(130,this.chaoY-35,"");
- this.jogador.setVisible(false);
- this.jogador.setSize(65,65);
- this.jogador.setCollideWorldBounds(true);
- this.jogador.body.setGravityY(1000);
- this.jogador.body.setMaxVelocity(650,850);
+  this.distancia = 0;
+  this.velocidade = 300;
+  this.tempoObstaculo = 0;
+  this.tempoMoeda = 0;
+  this.proximoBioma = 0;
+  this.teclaAnterior = false;
+  this.pAnterior = false;
+  this.ultimaColisao = 0;
 
- this.desenho=this.add.graphics();
- this.carretaDesenho=this.add.graphics();
- this.obstaculos=this.physics.add.group();
- this.moedasGrupo=this.physics.add.group();
+  this.chaoY = this.scale.height - 75;
 
- this.physics.add.collider(this.jogador,this.chao,()=>{
-   pulos=0;
- });
+  this.fundo = this.add.graphics().setDepth(0);
+  this.cenario = this.add.graphics().setDepth(1);
+  this.desenho = this.add.graphics().setDepth(5);
+  this.carretaDesenho = this.add.graphics().setDepth(4);
 
- this.physics.add.overlap(this.jogador,this.obstaculos,(j,o)=>{
-   if(invencivel>0 || jogoEncerrado)return;
-   o.destroy();
-   vidas--;
-   invencivel=1.3;
-   atualizarHUD();
-   if(vidas<=0)fimDeJogo.call(this);
- });
+  // Corpo físico invisível do chão.
+  this.chao = this.add.rectangle(
+    this.scale.width / 2,
+    this.chaoY + 40,
+    this.scale.width + 200,
+    80,
+    0x000000,
+    0
+  );
 
- this.physics.add.overlap(this.jogador,this.moedasGrupo,(j,m)=>{
-   m.destroy();
-   moedas+=10;
-   guardar();atualizarHUD();
- });
+  this.physics.add.existing(this.chao, true);
 
- this.input.on("pointerdown",pointer=>{
-   if(pointer.y>this.scale.height-75 && !painelAberto)this.pular();
- });
+  // Corpo físico do veículo, separado do desenho.
+  this.jogador = this.add.rectangle(
+    130,
+    this.chaoY - 28,
+    54,
+    38,
+    0x000000,
+    0
+  );
 
- this.teclas=this.input.keyboard.addKeys({
-   space:"SPACE",up:"UP",w:"W",p:"P"
- });
+  this.physics.add.existing(this.jogador);
 
- this.evento=0;
- this.moedaEvento=0;
- this.textoFim=null;
- atualizarHUD();
+  this.jogador.body.setCollideWorldBounds(false);
+  this.jogador.body.setGravityY(1000);
+  this.jogador.body.setMaxVelocity(650, 850);
+
+  this.obstaculos = this.physics.add.group({
+    allowGravity: false,
+    immovable: true
+  });
+
+  this.moedasGrupo = this.physics.add.group({
+    allowGravity: false,
+    immovable: true
+  });
+
+  this.physics.add.collider(
+    this.jogador,
+    this.chao,
+    () => {
+      if (this.jogador.body.blocked.down ||
+          this.jogador.body.touching.down) {
+        pulos = 0;
+      }
+    }
+  );
+
+  this.physics.add.overlap(
+    this.jogador,
+    this.obstaculos,
+    (jogador, obstaculo) => {
+      if (invencivel > 0 || jogoEncerrado ||
+          !obstaculo.active) return;
+
+      obstaculo.destroy();
+
+      vidas--;
+      invencivel = 1.2;
+
+      atualizarHUD();
+
+      if (vidas <= 0) encerrarJogo();
+    }
+  );
+
+  this.physics.add.overlap(
+    this.jogador,
+    this.moedasGrupo,
+    (jogador, moeda) => {
+      if (!moeda.active) return;
+
+      moeda.destroy();
+      moedas += 10;
+
+      guardar();
+      atualizarHUD();
+    }
+  );
+
+  this.teclas = this.input.keyboard.addKeys({
+    space: Phaser.Input.Keyboard.KeyCodes.SPACE,
+    up: Phaser.Input.Keyboard.KeyCodes.UP,
+    w: Phaser.Input.Keyboard.KeyCodes.W,
+    p: Phaser.Input.Keyboard.KeyCodes.P
+  });
+
+  this.input.on("pointerdown", pointer => {
+    if (painelAberto || jogoPausado || jogoEncerrado) return;
+
+    if (pointer.y > this.scale.height - 75) {
+      this.pular();
+    }
+  });
+
+  this.pular = () => {
+    if (jogoPausado || jogoEncerrado || painelAberto) return;
+    if (pulos >= 2) return;
+
+    pulos++;
+
+    // Segundo salto com impulso um pouco menor.
+    this.jogador.body.setVelocityY(pulos === 1 ? -450 : -400);
+  };
+
+  atualizarHUD();
+  desenharCenario.call(this);
 }
 
-function pular(){
- if(jogoPausado||jogoEncerrado||!sceneJogo)return;
- const s=sceneJogo;
- if(pulos>=2)return;
- pulos++;
- s.jogador.setVelocityY(pulos===1?-440:-390);
+/* ========================================
+   DESENHO: TRATOR
+======================================== */
+
+function desenharTrator(g, x, y, cor) {
+  const ret = (px, py, w, h, c) => {
+    g.fillStyle(c, 1);
+    g.fillRect(px, py, w, h);
+  };
+
+  const circ = (px, py, r, c) => {
+    g.fillStyle(c, 1);
+    g.fillCircle(px, py, r);
+  };
+
+  // Sombra
+  g.fillStyle(0x263525, 0.25);
+  g.fillEllipse(x + 3, y + 23, 92, 13);
+
+  // Pneus traseiros e dianteiros
+  circ(x - 22, y + 12, 21, 0x151515);
+  circ(x - 22, y + 12, 15, 0x333333);
+  circ(x - 22, y + 12, 10, 0x777777);
+  circ(x - 22, y + 12, 5, 0xc3c3c3);
+
+  circ(x + 29, y + 14, 13, 0x151515);
+  circ(x + 29, y + 14, 8, 0x555555);
+  circ(x + 29, y + 14, 4, 0xc3c3c3);
+
+  // Sulcos dos pneus
+  g.lineStyle(2, 0x777777, 1);
+
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4;
+
+    g.lineBetween(
+      x - 22 + Math.cos(a) * 14,
+      y + 12 + Math.sin(a) * 14,
+      x - 22 + Math.cos(a) * 19,
+      y + 12 + Math.sin(a) * 19
+    );
+  }
+
+  // Eixos
+  ret(x - 33, y + 1, 65, 6, 0x292d29);
+
+  // Para-lama traseiro
+  g.lineStyle(5, cor, 1);
+  g.strokeCircle(x - 22, y + 12, 22);
+
+  // Capô
+  ret(x - 7, y - 18, 43, 22, cor);
+  ret(x + 19, y - 21, 17, 7, 0x343b34);
+
+  // Detalhes metálicos
+  ret(x - 5, y - 2, 37, 4, 0x202620);
+  ret(x + 28, y - 15, 9, 13, 0x252925);
+
+  // Grade frontal
+  ret(x + 29, y - 13, 7, 9, 0x151515);
+
+  for (let i = 0; i < 4; i++) {
+    ret(x + 30, y - 12 + i * 2, 5, 1, 0xb5b5b5);
+  }
+
+  // Faróis
+  circ(x + 34, y - 17, 4, 0xffe99a);
+  circ(x + 34, y - 17, 2, 0xffffff);
+
+  // Cabine
+  ret(x - 22, y - 42, 27, 25, cor);
+  ret(x - 18, y - 39, 19, 16, 0x27322b);
+  ret(x - 16, y - 37, 15, 12, 0x82d7ef);
+
+  // Reflexo no vidro
+  g.lineStyle(2, 0xd7f5ff, 0.8);
+  g.lineBetween(x - 14, y - 35, x - 7, y - 27);
+
+  // Teto e pilares
+  ret(x - 25, y - 45, 33, 5, 0x242a24);
+  ret(x - 22, y - 19, 4, 7, 0x282828);
+
+  // Escapamento
+  ret(x + 8, y - 34, 4, 15, 0x515151);
+  ret(x + 7, y - 38, 6, 4, 0x242424);
+
+  // Banco
+  ret(x - 9, y - 20, 8, 4, 0x202020);
 }
 
-function fimDeJogo(){
- jogoEncerrado=true;
- this.physics.world.pause();
- recorde=Math.max(recorde,Math.floor(distancia));
- guardar();atualizarHUD();
- const cx=this.scale.width/2,cy=this.scale.height/2;
- this.textoFim=this.add.text(cx,cy,
-   "FIM DE JOGO\n\nDistância: "+Math.floor(distancia)+
-   "\n\nToque para recomeçar",
-   {fontFamily:"Arial",fontSize:"27px",fontStyle:"bold",
-    color:"#ffffff",align:"center",backgroundColor:"#263b26",
-    padding:{x:18,y:18}}
- ).setOrigin(.5).setDepth(100);
- this.input.once("pointerdown",()=>{
-   jogoEncerrado=false;vidas=3;distancia=0;pulos=0;
-   this.scene.restart();
- });
+/* ========================================
+   DESENHO: MOTO E PILOTO
+======================================== */
+
+function desenharMoto(g, x, y, cor) {
+  const ret = (px, py, w, h, c) => {
+    g.fillStyle(c, 1);
+    g.fillRect(px, py, w, h);
+  };
+
+  const circ = (px, py, r, c) => {
+    g.fillStyle(c, 1);
+    g.fillCircle(px, py, r);
+  };
+
+  g.fillStyle(0x263525, 0.25);
+  g.fillEllipse(x + 1, y + 23, 77, 10);
+
+  // Rodas
+  circ(x - 23, y + 12, 12, 0x141414);
+  circ(x - 23, y + 12, 7, 0x777777);
+  circ(x - 23, y + 12, 3, 0xc4c4c4);
+
+  circ(x + 25, y + 12, 12, 0x141414);
+  circ(x + 25, y + 12, 7, 0x777777);
+  circ(x + 25, y + 12, 3, 0xc4c4c4);
+
+  // Chassi e suspensão
+  g.lineStyle(4, 0xb8b8b8, 1);
+  g.lineBetween(x - 23, y + 12, x - 8, y - 5);
+  g.lineBetween(x - 8, y - 5, x + 25, y + 12);
+  g.lineBetween(x - 8, y - 5, x + 5, y + 12);
+  g.lineBetween(x + 22, y - 7, x + 25, y + 12);
+
+  // Carenagem
+  ret(x - 15, y - 11, 28, 9, cor);
+  ret(x - 6, y - 17, 16, 8, cor);
+  ret(x - 3, y - 22, 6, 7, 0x252525);
+
+  // Banco e rabeta
+  ret(x - 16, y - 14, 12, 4, 0x202020);
+  ret(x + 12, y - 7, 14, 5, 0x303030);
+
+  // Farol
+  circ(x + 29, y - 7, 4, 0xffedaa);
+  circ(x + 29, y - 7, 2, 0xffffff);
+
+  // Guidão
+  g.lineStyle(3, 0x292929, 1);
+  g.lineBetween(x + 19, y - 8, x + 27, y - 17);
+  g.lineBetween(x + 24, y - 14, x + 32, y - 14);
+
+  // Piloto: capacete, corpo, braços e pernas
+  circ(x + 1, y - 30, 7, 0x171b1d);
+  circ(x + 3, y - 31, 4, 0x4b565b);
+  ret(x - 4, y - 24, 11, 13, 0x343f45);
+
+  g.lineStyle(4, 0x252b2e, 1);
+  g.lineBetween(x, y - 18, x - 10, y - 7);
+  g.lineBetween(x + 3, y - 18, x + 14, y - 12);
+  g.lineBetween(x - 1, y - 12, x + 7, y - 3);
 }
 
-function desenharTrator(g,x,y,cor,escala=1){
- g.save();
- g.translateCanvas(x,y);
- g.scaleCanvas(escala,escala);
- const ret=(x,y,w,h,c)=>{
-   g.fillStyle(c,1);g.fillRect(x,y,w,h);
- };
- const circ=(x,y,r,c)=>{
-   g.fillStyle(c,1);g.fillCircle(x,y,r);
- };
- // Pneus grandes e rodas detalhadas
- circ(-22,13,20,0x171717);circ(-22,13,12,0x555555);
- circ(-22,13,7,0xb5b5b5);circ(29,13,12,0x171717);
- circ(29,13,7,0x666666);circ(29,13,4,0xc5c5c5);
- // Sulcos dos pneus
- g.lineStyle(2,0x777777,1);
- for(let a=0;a<8;a++){
-   const ang=a*Math.PI/4;
-   g.lineBetween(-22+Math.cos(ang)*14,13+Math.sin(ang)*14,
-                 -22+Math.cos(ang)*19,13+Math.sin(ang)*19);
- }
- // Chassi e capô
- ret(-34,-3,65,12,0x343b32);
- ret(-7,-19,40,20,cor);
- ret(20,-24,18,7,0x252525);
- // Grade frontal
- ret(28,-15,9,12,0x292929);
- for(let i=0;i<4;i++)ret(29,-14+i*3,7,1,0xb9b9b9);
- // Farol
- circ(32,-19,4,0xfff3b0);
- circ(32,-19,2,0xffffff);
- // Cabine
- ret(-21,-42,25,25,cor);
- ret(-17,-39,17,15,0x292e2a);
- ret(-15,-37,13,11,0x82d7ef);
- ret(-23,-44,29,4,0x202820);
- ret(-22,-16,5,12,0x262626);
- // Escape e detalhes
- ret(7,-32,4,14,0x444444);
- ret(8,-37,3,7,0x242424);
- ret(-32,-7,9,5,0x242424);
- // Para-lamas
- g.lineStyle(4,cor,1);
- g.strokeCircle(-22,13,21);
- g.restore();
+/* ========================================
+   DESENHO: CARRETA
+======================================== */
+
+function desenharCarreta(g, x, y) {
+  g.clear();
+
+  const ret = (px, py, w, h, c) => {
+    g.fillStyle(c, 1);
+    g.fillRect(px, py, w, h);
+  };
+
+  const circ = (px, py, r, c) => {
+    g.fillStyle(c, 1);
+    g.fillCircle(px, py, r);
+  };
+
+  // Engate
+  ret(x - 15, y - 5, 35, 4, 0x303030);
+  circ(x + 17, y - 3, 3, 0x888888);
+
+  // Caixa da carreta
+  ret(x + 17, y - 29, 60, 26, 0x8b211d);
+  ret(x + 20, y - 27, 54, 21, 0xd43c31);
+
+  // Bordas e detalhes
+  ret(x + 18, y - 5, 59, 4, 0x79221b);
+  ret(x + 20, y - 29, 58, 3, 0xb83229);
+
+  g.lineStyle(2, 0xf1c2b3, 1);
+  g.lineBetween(x + 25, y - 22, x + 69, y - 22);
+
+  // Rodas
+  circ(x + 32, y + 3, 8, 0x171717);
+  circ(x + 32, y + 3, 4, 0x888888);
+  circ(x + 67, y + 3, 8, 0x171717);
+  circ(x + 67, y + 3, 4, 0x888888);
 }
 
-function desenharMoto(g,x,y,cor,escala=1){
- g.save();g.translateCanvas(x,y);g.scaleCanvas(escala,escala);
- const ret=(x,y,w,h,c)=>{g.fillStyle(c,1);g.fillRect(x,y,w,h)};
- const circ=(x,y,r,c)=>{g.fillStyle(c,1);g.fillCircle(x,y,r)};
- circ(-23,12,12,0x151515);circ(-23,12,7,0x777777);
- circ(25,12,12,0x151515);circ(25,12,7,0x777777);
- g.lineStyle(4,0xb5b5b5,1);
- g.lineBetween(-23,12,-8,-5);g.lineBetween(-8,-5,25,12);
- g.lineBetween(-8,-5,6,12);g.lineBetween(6,12,25,12);
- ret(-14,-10,26,8,cor);
- ret(-6,-16,13,8,cor);
- ret(-4,-22,5,7,0x252525);
- ret(17,-3,13,5,0x303030);
- circ(30,-5,4,0xfff0b0);
- // Guidão e suspensão
- g.lineStyle(3,0x333333,1);
- g.lineBetween(22,-7,28,-17);g.lineBetween(22,-7,31,-7);
- g.lineBetween(-22,12,-14,-10);
- // Piloto
- circ(0,-29,6,0x252525);
- ret(-4,-25,9,12,0x343b40);
- g.lineStyle(3,0x222222,1);
- g.lineBetween(-1,-19,-8,-8);g.lineBetween(2,-19,13,-12);
- g.restore();
+/* ========================================
+   CENÁRIO RURAL E BIOMAS
+======================================== */
+
+function desenharCenario() {
+  const w = this.scale.width;
+  const h = this.scale.height;
+  const g = this.fundo;
+  const c = this.cenario;
+
+  this.chaoY = h - 75;
+
+  g.clear();
+  c.clear();
+
+  // Céu
+  g.fillGradientStyle(
+    0x64bce9, 0x64bce9,
+    0xd9f2ff, 0xd9f2ff, 1
+  );
+  g.fillRect(0, 0, w, h);
+
+  // Sol
+  g.fillStyle(0xffe99b, 1);
+  g.fillCircle(w - 90, 75, 29);
+
+  // Nuvens
+  const deslocamento = (this.distancia * 0.25) % (w + 180);
+
+  for (let i = 0; i < 4; i++) {
+    const x = ((i * 250 - deslocamento + w + 180) %
+      (w + 180)) - 70;
+    const y = 45 + (i % 2) * 40;
+
+    g.fillStyle(0xffffff, 0.85);
+    g.fillEllipse(x, y, 58, 21);
+    g.fillEllipse(x - 15, y + 3, 29, 17);
+    g.fillEllipse(x + 15, y + 1, 34, 18);
+  }
+
+  const bioma = Math.floor(this.distancia / 400) % 4;
+
+  // Colinas diferentes conforme a distância
+  if (bioma === 0) {
+    g.fillStyle(0x7faf69, 1);
+  } else if (bioma === 1) {
+    g.fillStyle(0x9cba76, 1);
+  } else if (bioma === 2) {
+    g.fillStyle(0x5e9655, 1);
+  } else {
+    g.fillStyle(0x8bb5a0, 1);
+  }
+
+  g.fillTriangle(0, this.chaoY, 100, this.chaoY - 100, 240, this.chaoY);
+  g.fillTriangle(200, this.chaoY, 400, this.chaoY - 75, 570, this.chaoY);
+  g.fillTriangle(w - 260, this.chaoY, w - 100, this.chaoY - 90, w, this.chaoY);
+
+  // Fazenda: celeiro ao fundo
+  if (bioma === 0 || bioma === 2) {
+    const bx = w * 0.68;
+    const by = this.chaoY - 60;
+
+    g.fillStyle(0xa83a2c, 1);
+    g.fillRect(bx, by, 75, 48);
+
+    g.fillStyle(0x70231e, 1);
+    g.fillTriangle(bx - 10, by, bx + 37, by - 30, bx + 85, by);
+
+    g.fillStyle(0xe8e0bd, 1);
+    g.fillRect(bx + 28, by + 20, 20, 28);
+
+    g.lineStyle(2, 0xefe6c6, 1);
+    g.lineBetween(bx + 28, by + 20, bx + 48, by + 48);
+    g.lineBetween(bx + 48, by + 20, bx + 28, by + 48);
+  }
+
+  // Árvores e vegetação
+  const arvoreOffset = (this.distancia * 0.7) % 170;
+
+  for (let i = 0; i < 8; i++) {
+    const tx = ((i * 170 - arvoreOffset + w + 170) %
+      (w + 170)) - 30;
+    const ty = this.chaoY - 30;
+
+    c.fillStyle(0x68462b, 1);
+    c.fillRect(tx - 4, ty - 26, 8, 29);
+
+    c.fillStyle(bioma === 3 ? 0x557d66 : 0x34723a, 1);
+    c.fillCircle(tx, ty - 35, 16);
+    c.fillCircle(tx - 10, ty - 25, 11);
+    c.fillCircle(tx + 10, ty - 24, 12);
+  }
+
+  // Chão e faixa de terra
+  g.fillStyle(bioma === 3 ? 0x63894b : 0x659943, 1);
+  g.fillRect(0, this.chaoY + 8, w, h - this.chaoY);
+
+  g.fillStyle(0xc4a66a, 1);
+  g.fillRect(0, this.chaoY + 15, w, 7);
+
+  g.fillStyle(0x8c754b, 1);
+  g.fillRect(0, this.chaoY + 22, w, h - this.chaoY - 22);
+
+  // Pequenas marcas da terra em movimento
+  g.fillStyle(0xb69a63, 0.8);
+
+  const terraOffset = (this.distancia * 8) % 100;
+
+  for (let i = 0; i < Math.ceil(w / 100) + 1; i++) {
+    const tx = i * 100 - terraOffset;
+    g.fillRect(tx, this.chaoY + 39, 24, 3);
+    g.fillRect(tx + 43, this.chaoY + 56, 17, 2);
+  }
+
+  const nomes = [
+    "Fazenda",
+    "Campo aberto",
+    "Plantação",
+    "Estrada rural"
+  ];
+
+  if (this.ultimoBioma !== bioma) {
+    this.ultimoBioma = bioma;
+  }
+
+  if (!this.textoBioma) {
+    this.textoBioma = this.add.text(12, 10, "", {
+      fontFamily: "Arial",
+      fontSize: "15px",
+      fontStyle: "bold",
+      color: "#ffffff",
+      stroke: "#284329",
+      strokeThickness: 3
+    }).setDepth(9);
+  }
+
+  this.textoBioma.setText(
+    "🌾 " + nomes[bioma] +
+    "  •  " + Math.floor(this.distancia) + " m"
+  );
 }
 
-function desenharCarreta(g,x,y){
- g.clear();
- g.fillStyle(0x303030,1);g.fillRect(x-3,y-8,30,4);
- g.fillStyle(0x9d2822,1);g.fillRect(x+20,y-28,58,26);
- g.fillStyle(0xd44537,1);g.fillRect(x+23,y-25,52,20);
- g.fillStyle(0x70201b,1);g.fillRect(x+20,y-5,58,4);
- g.fillStyle(0x222222,1);g.fillCircle(x+34,y+2,8);
- g.fillStyle(0x777777,1);g.fillCircle(x+34,y+2,4);
- g.fillStyle(0x222222,1);g.fillCircle(x+68,y+2,8);
- g.fillStyle(0x777777,1);g.fillCircle(x+68,y+2,4);
- g.lineStyle(2,0xe9c6b8,1);
- g.lineBetween(x+27,y-20,x+70,y-20);
+/* ========================================
+   OBSTÁCULOS E MOEDAS
+======================================== */
+
+function criarObstaculo() {
+  const w = this.scale.width;
+  const y = this.chaoY - 12;
+
+  const tipo = Math.random() < 0.5 ? "pedra" : "fardo";
+  const largura = tipo === "pedra" ? 34 : 43;
+  const altura = tipo === "pedra" ? 29 : 25;
+
+  const o = this.add.rectangle(
+    w + 40, y, largura, altura, 0x000000, 0
+  );
+
+  this.physics.add.existing(o);
+
+  o.body.setAllowGravity(false);
+  o.body.setImmovable(true);
+  o.body.setSize(largura, altura);
+
+  o.tipo = tipo;
+
+  this.obstaculos.add(o);
 }
 
-function update(time,delta){
- if(jogoPausado||jogoEncerrado)return;
- const dt=delta/1000;
- if(!this.jogador)return;
+function criarMoeda() {
+  const w = this.scale.width;
 
- if(this.teclas.space.isDown||this.teclas.up.isDown||this.teclas.w.isDown){
-   if(!this.teclaAnterior)this.pular();
-   this.teclaAnterior=true;
- }else this.teclaAnterior=false;
+  const m = this.add.circle(
+    w + 30,
+    this.chaoY - 60 - Math.random() * 65,
+    11,
+    0x000000,
+    0
+  );
 
- if(this.teclas.p.isDown){
-   if(!this.pAnterior)pausar();
-   this.pAnterior=true;
- }else this.pAnterior=false;
+  this.physics.add.existing(m);
 
- if(invencivel>0)invencivel-=dt;
+  m.body.setAllowGravity(false);
+  m.body.setImmovable(true);
+  m.body.setCircle(11);
 
- const w=this.scale.width,h=this.scale.height;
- this.chaoY=h-75;
- this.chao.setPosition(w/2,this.chaoY+40);
- this.chao.width=w+100;
- this.chao.body.updateFromGameObject();
-
- velocidade=freando?100:Math.min(480,300+distancia*0.025);
- distancia+=velocidade*dt/20;
-
- // Fundo em movimento e chão rural
- this.fundo.clear();
- this.fundo.fillGradientStyle(0x70c9ee,0x70c9ee,0xd3edfa,0xd3edfa,1);
- this.fundo.fillRect(0,0,w,h);
- this.fundo.fillStyle(0x82b968,1);
- this.fundo.fillTriangle(0,this.chaoY,100,this.chaoY-100,240,this.chaoY);
- this.fundo.fillTriangle(200,this.chaoY,400,this.chaoY-75,570,this.chaoY);
- this.fundo.fillStyle(0x4b8039,1);
- this.fundo.fillRect(0,this.chaoY+8,w,h-this.chaoY);
- this.fundo.fillStyle(0xc4a66a,1);
- this.fundo.fillRect(0,this.chaoY+15,w,7);
-
- this.evento+=dt;
- this.moedaEvento+=dt;
-
- if(this.evento>Math.max(0.85,1.55-distancia/400)){
-   this.evento=0;
-   const x=w+30;
-   const tipo=Math.random();
-   const ob=this.physics.add.image(x,this.chaoY-15,"");
-   ob.setVisible(false);
-   ob.body.setAllowGravity(false);
-   ob.setImmovable(true);
-   ob.setSize(tipo<0.5?35:45, tipo<0.5?35:25);
-   ob.tipo=tipo<0.5?"pedra":"fardo";
-   this.obstaculos.add(ob);
-   ob.setData("tipo",ob.tipo);
- }
-
- if(this.moedaEvento>1.1){
-   this.moedaEvento=0;
-   const m=this.physics.add.image(w+25,this.chaoY-65-Math.random()*70,"");
-   m.setVisible(false);
-   m.body.setAllowGravity(false);
-   m.setCircle(13);
-   this.moedasGrupo.add(m);
- }
-
- this.obstaculos.getChildren().forEach(o=>{
-   o.x-=velocidade*dt;
-   if(o.x<-60)o.destroy();
- });
- this.moedasGrupo.getChildren().forEach(m=>{
-   m.x-=velocidade*dt;
-   if(m.x<-40)m.destroy();
- });
-
- this.desenho.clear();
- const v=veiculos[selecionado]||veiculos[0];
- if(v.tipo==="trator")desenharTrator(this.desenho,this.jogador.x,this.jogador.y,v.cor);
- else desenharMoto(this.desenho,this.jogador.x,this.jogador.y,v.cor);
-
- // Obstáculos desenhados à frente do veículo
- this.obstaculos.getChildren().forEach(o=>{
-   if(o.tipo==="pedra"){
-     this.desenho.fillStyle(0x69645b,1);
-     this.desenho.fillTriangle(o.x-20,this.chaoY,o.x-13,this.chaoY-29,o.x+12,this.chaoY);
-     this.desenho.fillStyle(0x9a9488,1);
-     this.desenho.fillTriangle(o.x-10,this.chaoY-4,o.x-7,this.chaoY-22,o.x+7,this.chaoY-4);
-   }else{
-     this.desenho.fillStyle(0xcaa35c,1);
-     this.desenho.fillRoundedRect(o.x-22,this.chaoY-26,44,25,5);
-     this.desenho.lineStyle(2,0x8d6939,1);
-     this.desenho.strokeCircle(o.x,this.chaoY-14,10);
-   }
- });
- this.moedasGrupo.getChildren().forEach(m=>{
-   this.desenho.fillStyle(0xffd52a,1);
-   this.desenho.fillCircle(m.x,m.y,11);
-   this.desenho.lineStyle(2,0xfff1a0,1);
-   this.desenho.strokeCircle(m.x,m.y,8);
-   this.desenho.fillStyle(0x9a6d00,1);
-   this.desenho.fillRect(m.x-2,m.y-5,4,10);
- });
-
- // A carreta só acompanha tratores quando comprada e engatada
- if(carretaComprada&&carretaEngatada&&v.tipo==="trator"){
-   desenharCarreta(this.carretaDesenho,this.jogador.x-115,this.jogador.y+16);
- }else{
-   this.carretaDesenho.clear();
- }
-
- if(invencivel>0){
-   this.desenho.setAlpha(Math.floor(time/100)%2===0?0.3:1);
- }else this.desenho.setAlpha(1);
-
- // Ajuste de colisão do veículo
- this.jogador.setPosition(130,Phaser.Math.Clamp(this.jogador.y,30,this.chaoY-5));
- this.jogador.body.setSize(veiculos[selecionado].tipo==="trator"?63:58,45);
- this.jogador.body.setOffset(0,0);
-
- if(Math.floor(distancia)>recorde){
-   recorde=Math.floor(distancia);
-   atualizarHUD();
-   guardar();
- }
+  this.moedasGrupo.add(m);
 }
 
-function pausarJogoSeguro(){
- if(sceneJogo)sceneJogo.physics.world.pause();
+function desenharObjetos() {
+  const g = this.desenho;
+
+  g.clear();
+
+  // Obstáculos
+  this.obstaculos.getChildren().forEach(o => {
+    if (!o.active) return;
+
+    if (o.tipo === "pedra") {
+      g.fillStyle(0x494941, 1);
+      g.fillTriangle(
+        o.x - 19, this.chaoY,
+        o.x - 11, this.chaoY - 28,
+        o.x + 18, this.chaoY
+      );
+
+      g.fillStyle(0x88867d, 1);
+      g.fillTriangle(
+        o.x - 10, this.chaoY - 3,
+        o.x - 5, this.chaoY - 19,
+        o.x + 7, this.chaoY - 3
+      );
+    } else {
+      g.fillStyle(0x98723e, 1);
+      g.fillRoundedRect(
+        o.x - 22, this.chaoY - 26, 44, 25, 5
+      );
+
+      g.fillStyle(0xd6b36d, 1);
+      g.fillCircle(o.x, this.chaoY - 14, 10);
+
+      g.lineStyle(2, 0x9a783f, 1);
+      g.strokeCircle(o.x, this.chaoY - 14, 8);
+    }
+  });
+
+  // Moedas
+  this.moedasGrupo.getChildren().forEach(m => {
+    if (!m.active) return;
+
+    g.fillStyle(0xb87c00, 1);
+    g.fillCircle(m.x, m.y, 12);
+
+    g.fillStyle(0xffd52a, 1);
+    g.fillCircle(m.x, m.y, 9);
+
+    g.lineStyle(2, 0xfff4a6, 1);
+    g.strokeCircle(m.x, m.y, 7);
+
+    g.fillStyle(0x9a6d00, 1);
+    g.fillRect(m.x - 2, m.y - 5, 4, 10);
+  });
 }
+
+/* ========================================
+   ATUALIZAÇÃO DA PARTIDA
+======================================== */
+
+function atualizarJogo(time, delta) {
+  if (jogoPausado || jogoEncerrado) return;
+
+  const dt = Math.min(delta / 1000, 0.05);
+  const w = this.scale.width;
+  const h = this.scale.height;
+
+  this.chaoY = h - 75;
+
+  // Atualizar chão físico
+  this.chao.setPosition(
+    w / 2,
+    this.chaoY + 40
+  );
+
+  this.chao.setSize(w + 200, 80);
+  this.chao.body.updateFromGameObject();
+
+  // Teclado: um salto por pressionamento.
+  const pressionando = this.teclas.space.isDown ||
+    this.teclas.up.isDown ||
+    this.teclas.w.isDown;
+
+  if (pressionando && !this.teclaAnterior) {
+    this.pular();
+  }
+
+  this.teclaAnterior = pressionando;
+
+  // Tecla P pausa ou continua.
+  if (this.teclas.p.isDown && !this.pAnterior) {
+    pausar();
+  }
+
+  this.pAnterior = this.teclas.p.isDown;
+
+  if (invencivel > 0) {
+    invencivel = Math.max(0, invencivel - dt);
+  }
+
+  // Velocidade e distância.
+  this.velocidade = freando
+    ? 100
+    : Math.min(480, 300 + this.distancia * 0.025);
+
+  this.distancia += this.velocidade * dt / 20;
+  distancia = this.distancia;
+
+  // Cenário.
+  desenharCenario.call(this);
+
+  // Intervalo de obstáculos controlado para manter
+  // espaço suficiente entre eles.
+  this.tempoObstaculo += dt;
+
+  const intervalo = Math.max(
+    1.15,
+    1.75 - this.distancia / 5000
+  );
+
+  if (this.tempoObstaculo >= intervalo) {
+    this.tempoObstaculo = 0;
+    criarObstaculo.call(this);
+  }
+
+  this.tempoMoeda += dt;
+
+  if (this.tempoMoeda >= 1.15) {
+    this.tempoMoeda = 0;
+    criarMoeda.call(this);
+  }
+
+  // Mover obstáculos e atualizar seus corpos físicos.
+  this.obstaculos.getChildren().forEach(o => {
+    if (!o.active) return;
+
+    o.x -= this.velocidade * dt;
+    o.body.updateFromGameObject();
+
+    if (o.x < -70) o.destroy();
+  });
+
+  this.moedasGrupo.getChildren().forEach(m => {
+    if (!m.active) return;
+
+    m.x -= this.velocidade * dt;
+    m.body.updateFromGameObject();
+
+    if (m.x < -40) m.destroy();
+  });
+
+  // Ajustar área física do veículo.
+  this.jogador.x = 130;
+  this.jogador.body.setSize(
+    veiculos[selecionado].tipo === "trator" ? 57 : 51,
+    36
+  );
+
+  // Desenho do veículo.
+  this.carretaDesenho.clear();
+
+  const v = veiculos[selecionado];
+  const x = this.jogador.x;
+  const y = this.jogador.y;
+
+  if (v.tipo === "trator") {
+    desenharTrator(this.desenho, x, y, v.cor);
+
+    if (carretaComprada && carretaEngatada) {
+      desenharCarreta(
+        this.carretaDesenho,
+        x - 116,
+        y + 15
+      );
+    }
+  } else {
+    desenharMoto(this.desenho, x, y, v.cor);
+  }
+
+  // Piscar o veículo após uma colisão.
+  const alpha = invencivel > 0 && Math.floor(time / 100) % 2 === 0
+    ? 0.35 : 1;
+
+  this.desenho.setAlpha(alpha);
+  this.carretaDesenho.setAlpha(alpha);
+
+  // Recorde.
+  if (Math.floor(this.distancia) > recorde) {
+    recorde = Math.floor(this.distancia);
+    atualizarHUD();
+    guardar();
+  }
+}
+
+/* ========================================
+   FIM DE JOGO E REINÍCIO
+======================================== */
+
+function encerrarJogo() {
+  if (jogoEncerrado) return;
+
+  jogoEncerrado = true;
+  jogoPausado = true;
+
+  if (sceneJogo) sceneJogo.physics.world.pause();
+
+  recorde = Math.max(recorde, Math.floor(distancia));
+
+  guardar();
+  atualizarHUD();
+  atualizarPausa();
+
+  document.getElementById("resultadoFim").textContent =
+    "Distância percorrida: " + Math.floor(distancia) +
+    " metros • Recorde: " + recorde + " metros";
+
+  document.getElementById("fim").style.display = "block";
+}
+
+function reiniciarJogo() {
+  document.getElementById("fim").style.display = "none";
+  document.getElementById("painel").style.display = "none";
+
+  painelAberto = false;
+  jogoPausado = false;
+  jogoEncerrado = false;
+  freando = false;
+  distancia = 0;
+  vidas = 3;
+  pulos = 0;
+  invencivel = 0;
+
+  clearTimeout(temporizadorFreio);
+
+  atualizarHUD();
+  atualizarPausa();
+
+  if (sceneJogo) {
+    sceneJogo.scene.restart();
+  }
+}
+
+atualizarHUD();
+atualizarPausa();
 </script>
 
 </body>
