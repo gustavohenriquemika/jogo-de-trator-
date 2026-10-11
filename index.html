@@ -5,156 +5,42 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Jogo do Trator Infinito</title>
-
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
-
 <style>
-* { box-sizing: border-box; }
-
-html, body {
-  margin: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: #17251a;
-  color: white;
-  font-family: Arial, sans-serif;
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-#topo {
-  min-height: 52px;
-  background: #203d25;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  gap: 5px;
-  padding: 5px;
-  flex-wrap: wrap;
-}
-
-button {
-  border: 2px solid #d8e7c5;
-  border-radius: 9px;
-  background: #376b35;
-  color: white;
-  padding: 9px 11px;
-  font-weight: bold;
-  font-size: 13px;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-button:active { transform: scale(.97); }
-
-#game {
-  width: 100%;
-  height: calc(100dvh - 120px);
-  min-height: 200px;
-  position: relative;
-  overflow: hidden;
-}
-
-#game canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-#baixo {
-  height: 68px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  background: #203d25;
-}
-
-#pular {
-  font-size: 20px;
-  background: #e8ad32;
-  color: #171717;
-  min-width: 125px;
-  height: 52px;
-}
-
-#frear {
-  background: #a8392c;
-  min-width: 85px;
-  height: 48px;
-}
-
-#painel, #fim {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  background: #101b10f5;
-  overflow-y: auto;
-  padding: 15px;
-  text-align: center;
-}
-
-#painel h2, #fim h2 { color: #f0d36b; }
-
-#itens {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  max-width: 700px;
-  margin: 15px auto;
-}
-
-.item {
-  background: #29452d;
-  border: 1px solid #829e70;
-  padding: 12px;
-  border-radius: 12px;
-}
-
-.item button { margin-top: 8px; }
-
-#fechar { margin: 12px; }
-
-.pequeno {
-  font-size: 12px;
-  color: #d7e2d0;
-}
-
-#fim {
-  z-index: 20;
-  background: #101b10ef;
-  align-content: center;
-}
-
-#fim button {
-  font-size: 17px;
-  padding: 14px 22px;
-  background: #e8ad32;
-  color: #171717;
-}
-
-@media (max-width: 420px) {
-  #topo button {
-    font-size: 11px;
-    padding: 7px;
-  }
-
-  #itens { grid-template-columns: 1fr; }
-  #baixo { gap: 8px; }
-  #pular { min-width: 120px; }
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#17251a;color:white;font-family:Arial,sans-serif;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+#topo{min-height:52px;background:#203d25;display:flex;align-items:center;justify-content:space-around;gap:5px;padding:5px;flex-wrap:wrap}
+button{border:2px solid #d8e7c5;border-radius:9px;background:#376b35;color:white;padding:9px 11px;font-weight:bold;font-size:13px;cursor:pointer;touch-action:manipulation}
+button:active{transform:scale(.97)}
+#game{width:100%;height:calc(100dvh - 120px);min-height:200px;position:relative;overflow:hidden}
+#game canvas{display:block;width:100%;height:100%}
+#baixo{height:68px;display:flex;justify-content:center;align-items:center;gap:12px;background:#203d25}
+#pular{font-size:20px;background:#e8ad32;color:#171717;min-width:125px;height:52px}
+#frear{background:#a8392c;min-width:85px;height:48px}
+#painel,#fim{display:none;position:fixed;inset:0;z-index:10;background:#101b10f5;overflow-y:auto;padding:15px;text-align:center}
+#painel h2,#fim h2{color:#f0d36b}
+#itens{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:700px;margin:15px auto}
+.item{background:#29452d;border:1px solid #829e70;padding:12px;border-radius:12px}
+.item button{margin-top:8px}
+#fechar{margin:12px}
+#fim{z-index:20;background:#101b10ef;align-content:center}
+#fim button{font-size:17px;padding:14px 22px;background:#e8ad32;color:#171717}
+.pequeno{font-size:12px;color:#d7e2d0}
+@media(max-width:420px){
+#topo button{font-size:11px;padding:7px}
+#itens{grid-template-columns:1fr}
+#baixo{gap:8px}
+#pular{min-width:120px}
 }
 </style>
 </head>
-
 <body>
 
 <div id="topo">
   <button onclick="abrirGaragem()">🚜 Garagem</button>
   <button onclick="abrirCarreta()">🛒 Carreta</button>
   <button id="botaoPausa" onclick="pausar()">⏸ Pausar</button>
+  <button id="botaoSom" onclick="alternarSom()">🔊 Som: ligado</button>
   <span>🪙 <b id="moedas">0</b></span>
   <span>❤️ <b id="vidas">3</b></span>
   <span>🏆 <b id="recorde">0</b></span>
@@ -183,1065 +69,961 @@ button:active { transform: scale(.97); }
 <script>
 "use strict";
 
-/* =========================================
+/* =====================================
    SALVAMENTO
-========================================= */
+===================================== */
 
-const salvar = {
-  ler(chave, padrao) {
-    try {
-      const valor = localStorage.getItem(chave);
-      return valor === null ? padrao : JSON.parse(valor);
-    } catch (e) {
-      return padrao;
-    }
+const salvar={
+  ler(chave,padrao){
+    try{
+      const v=localStorage.getItem(chave);
+      return v===null?padrao:JSON.parse(v);
+    }catch(e){return padrao;}
   },
-
-  gravar(chave, valor) {
-    try {
-      localStorage.setItem(chave, JSON.stringify(valor));
-    } catch (e) {}
+  gravar(chave,valor){
+    try{localStorage.setItem(chave,JSON.stringify(valor));}catch(e){}
   }
 };
 
-let moedas = Math.max(0, Number(salvar.ler("trator_moedas", 0)) || 0);
-let recorde = Math.max(0, Number(salvar.ler("trator_recorde", 0)) || 0);
+let moedas=Math.max(0,Number(salvar.ler("trator_moedas",0))||0);
+let recorde=Math.max(0,Number(salvar.ler("trator_recorde",0))||0);
+let carretaComprada=salvar.ler("trator_carreta",false)===true;
+let carretaEngatada=salvar.ler("trator_carreta_engatada",false)===true;
 
-let carretaComprada = salvar.ler("trator_carreta", false) === true;
-let carretaEngatada = salvar.ler("trator_carreta_engatada", false) === true;
-
-const veiculos = [
-  { nome: "Trator Verde", tipo: "trator", cor: 0x329447, preco: 0 },
-  { nome: "Trator Vermelho", tipo: "trator", cor: 0xc93830, preco: 150 },
-  { nome: "Trator Azul", tipo: "trator", cor: 0x287bc0, preco: 250 },
-  { nome: "Trator Amarelo", tipo: "trator", cor: 0xe6b92c, preco: 350 },
-  { nome: "Trator Rural", tipo: "trator", cor: 0x7a9b36, preco: 450 },
-  { nome: "Trator Premium", tipo: "trator", cor: 0xe5e5e5, preco: 600 },
-
-  { nome: "Moto de Trilha", tipo: "moto", cor: 0xd92f25, preco: 0 },
-  { nome: "Moto Azul", tipo: "moto", cor: 0x298bd1, preco: 180 },
-  { nome: "Moto Verde", tipo: "moto", cor: 0x40b95a, preco: 280 },
-  { nome: "Moto Amarela", tipo: "moto", cor: 0xe5bd2c, preco: 380 },
-  { nome: "Moto Racing", tipo: "moto", cor: 0xececec, preco: 500 },
-  { nome: "Moto Especial", tipo: "moto", cor: 0xa33bd0, preco: 650 }
+const veiculos=[
+  {nome:"Trator Verde",tipo:"trator",cor:0x329447,preco:0},
+  {nome:"Trator Vermelho",tipo:"trator",cor:0xc93830,preco:150},
+  {nome:"Trator Azul",tipo:"trator",cor:0x287bc0,preco:250},
+  {nome:"Trator Amarelo",tipo:"trator",cor:0xe6b92c,preco:350},
+  {nome:"Trator Rural",tipo:"trator",cor:0x7a9b36,preco:450},
+  {nome:"Trator Premium",tipo:"trator",cor:0xe5e5e5,preco:600},
+  {nome:"Moto de Trilha",tipo:"moto",cor:0xd92f25,preco:0},
+  {nome:"Moto Azul",tipo:"moto",cor:0x298bd1,preco:180},
+  {nome:"Moto Verde",tipo:"moto",cor:0x40b95a,preco:280},
+  {nome:"Moto Amarela",tipo:"moto",cor:0xe5bd2c,preco:380},
+  {nome:"Moto Racing",tipo:"moto",cor:0xececec,preco:500},
+  {nome:"Moto Especial",tipo:"moto",cor:0xa33bd0,preco:650}
 ];
 
-let selecionado = Number(salvar.ler("trator_veiculo", 0));
+let selecionado=Number(salvar.ler("trator_veiculo",0));
+if(!Number.isInteger(selecionado)||selecionado<0||selecionado>=veiculos.length)selecionado=0;
 
-if (!Number.isInteger(selecionado) ||
-    selecionado < 0 || selecionado >= veiculos.length) {
-  selecionado = 0;
+let comprados=salvar.ler("trator_comprados",[0,6]);
+if(!Array.isArray(comprados))comprados=[0,6];
+comprados=comprados.filter(i=>Number.isInteger(i)&&i>=0&&i<veiculos.length);
+if(!comprados.includes(0))comprados.push(0);
+if(!comprados.includes(6))comprados.push(6);
+if(!comprados.includes(selecionado))selecionado=0;
+
+let jogoPausado=false;
+let painelAberto=false;
+let jogoEncerrado=false;
+let freando=false;
+let distancia=0;
+let vidas=3;
+let pulos=0;
+let invencivel=0;
+let sceneJogo=null;
+
+function guardar(){
+  salvar.gravar("trator_moedas",moedas);
+  salvar.gravar("trator_recorde",recorde);
+  salvar.gravar("trator_carreta",carretaComprada);
+  salvar.gravar("trator_carreta_engatada",carretaEngatada);
+  salvar.gravar("trator_veiculo",selecionado);
+  salvar.gravar("trator_comprados",comprados);
 }
 
-let comprados = salvar.ler("trator_comprados", [0, 6]);
-
-if (!Array.isArray(comprados)) comprados = [0, 6];
-
-comprados = comprados.filter(i =>
-  Number.isInteger(i) && i >= 0 && i < veiculos.length
-);
-
-if (!comprados.includes(0)) comprados.push(0);
-if (!comprados.includes(6)) comprados.push(6);
-if (!comprados.includes(selecionado)) selecionado = 0;
-
-let jogoPausado = false;
-let painelAberto = false;
-let jogoEncerrado = false;
-let freando = false;
-let distancia = 0;
-let vidas = 3;
-let pulos = 0;
-let invencivel = 0;
-let sceneJogo = null;
-
-function guardar() {
-  salvar.gravar("trator_moedas", moedas);
-  salvar.gravar("trator_recorde", recorde);
-  salvar.gravar("trator_carreta", carretaComprada);
-  salvar.gravar("trator_carreta_engatada", carretaEngatada);
-  salvar.gravar("trator_veiculo", selecionado);
-  salvar.gravar("trator_comprados", comprados);
+function atualizarHUD(){
+  document.getElementById("moedas").textContent=moedas;
+  document.getElementById("vidas").textContent=vidas;
+  document.getElementById("recorde").textContent=recorde;
 }
 
-function atualizarHUD() {
-  document.getElementById("moedas").textContent = moedas;
-  document.getElementById("vidas").textContent = vidas;
-  document.getElementById("recorde").textContent = recorde;
+function atualizarPausa(){
+  document.getElementById("botaoPausa").textContent=
+    jogoPausado?"▶ Continuar":"⏸ Pausar";
 }
 
-function atualizarPausa() {
-  document.getElementById("botaoPausa").textContent =
-    jogoPausado ? "▶ Continuar" : "⏸ Pausar";
+/* =====================================
+   ÁUDIO: MÚSICA E MOTOR SINTETIZADOS
+===================================== */
+
+let audioCtx=null;
+let ganhoMestre=null;
+let ganhoMotor=null;
+let osciladorMotor=null;
+let filtroMotor=null;
+let somLigado=true;
+let temporizadorMusica=null;
+let notaMusica=0;
+
+const melodia=[
+  196,247,294,247,220,262,330,262,
+  196,247,294,370,330,294,247,220
+];
+
+function iniciarAudio(){
+  try{
+    const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+    if(!AudioContextClass)return;
+
+    if(!audioCtx){
+      audioCtx=new AudioContextClass();
+
+      ganhoMestre=audioCtx.createGain();
+      ganhoMestre.gain.value=somLigado?0.65:0;
+      ganhoMestre.connect(audioCtx.destination);
+
+      // Motor contínuo com harmônicos.
+      osciladorMotor=audioCtx.createOscillator();
+      osciladorMotor.type="sawtooth";
+      osciladorMotor.frequency.value=65;
+
+      filtroMotor=audioCtx.createBiquadFilter();
+      filtroMotor.type="lowpass";
+      filtroMotor.frequency.value=190;
+
+      ganhoMotor=audioCtx.createGain();
+      ganhoMotor.gain.value=0.0001;
+
+      osciladorMotor.connect(filtroMotor);
+      filtroMotor.connect(ganhoMotor);
+      ganhoMotor.connect(ganhoMestre);
+      osciladorMotor.start();
+
+      // Pequena vibração grave para dar corpo ao motor.
+      const grave=audioCtx.createOscillator();
+      const ganhoGrave=audioCtx.createGain();
+      grave.type="triangle";
+      grave.frequency.value=42;
+      ganhoGrave.gain.value=0.0001;
+      grave.connect(ganhoGrave);
+      grave.connect(ganhoMestre);
+      grave.start();
+
+      // Guarda o segundo oscilador para controlar o volume.
+      window._graveMotor=grave;
+      window._ganhoGrave=ganhoGrave;
+
+      tocarMusica();
+      temporizadorMusica=setInterval(tocarMusica,280);
+    }
+
+    if(audioCtx.state==="suspended")audioCtx.resume();
+    atualizarAudio();
+  }catch(e){
+    console.log("Áudio indisponível neste navegador.",e);
+  }
 }
 
-/* =========================================
-   GARAGEM
-========================================= */
+function tocarMusica(){
+  if(!audioCtx||!somLigado||!ganhoMestre)return;
+  if(audioCtx.state!=="running")return;
 
-function abrirPainel(titulo, descricao) {
-  if (jogoEncerrado) return;
+  const agora=audioCtx.currentTime;
+  const frequencia=melodia[notaMusica%melodia.length];
+  notaMusica++;
 
-  painelAberto = true;
-  jogoPausado = true;
+  // Melodia eletrônica leve, criada sem arquivos externos.
+  const osc=audioCtx.createOscillator();
+  const ganho=audioCtx.createGain();
+  osc.type="triangle";
+  osc.frequency.setValueAtTime(frequencia,agora);
+  ganho.gain.setValueAtTime(0.0001,agora);
+  ganho.gain.linearRampToValueAtTime(0.055,agora+0.025);
+  ganho.gain.exponentialRampToValueAtTime(0.0001,agora+0.24);
+  osc.connect(ganho);
+  ganho.connect(ganhoMestre);
+  osc.start(agora);
+  osc.stop(agora+0.25);
+}
 
-  if (sceneJogo) sceneJogo.physics.world.pause();
+function atualizarAudio(){
+  const botao=document.getElementById("botaoSom");
+  botao.textContent=somLigado?"🔊 Som: ligado":"🔇 Som: desligado";
+
+  if(!audioCtx||!ganhoMestre)return;
+
+  const agora=audioCtx.currentTime;
+  ganhoMestre.gain.cancelScheduledValues(agora);
+  ganhoMestre.gain.setTargetAtTime(somLigado?0.65:0,agora,0.08);
+
+  if(ganhoMotor){
+    const rodando=!jogoPausado&&!jogoEncerrado&&!painelAberto&&somLigado;
+    ganhoMotor.gain.setTargetAtTime(rodando?0.075:0.0001,agora,0.12);
+  }
+
+  if(window._ganhoGrave){
+    const rodando=!jogoPausado&&!jogoEncerrado&&!painelAberto&&somLigado;
+    window._ganhoGrave.gain.setTargetAtTime(rodando?0.035:0.0001,agora,0.12);
+  }
+}
+
+function atualizarMotor(){
+  if(!audioCtx||!osciladorMotor)return;
+  const velocidade=sceneJogo?sceneJogo.velocidade:300;
+  const tipo=veiculos[selecionado].tipo;
+  const base=tipo==="moto"?95:55;
+  osciladorMotor.frequency.setTargetAtTime(
+    base+velocidade*(tipo==="moto"?0.24:0.15),
+    audioCtx.currentTime,0.08
+  );
+  if(filtroMotor){
+    filtroMotor.frequency.setTargetAtTime(
+      140+velocidade*0.35,audioCtx.currentTime,0.1
+    );
+  }
+}
+
+function alternarSom(){
+  somLigado=!somLigado;
+  iniciarAudio();
+  atualizarAudio();
+}
+
+document.addEventListener("pointerdown",function(){
+  if(!audioCtx)iniciarAudio();
+},{once:true});
+
+/* =====================================
+   GARAGEM E CARRETA
+===================================== */
+
+function abrirPainel(titulo,descricao){
+  if(jogoEncerrado)return;
+  painelAberto=true;
+  jogoPausado=true;
+
+  if(sceneJogo){
+    sceneJogo.physics.world.pause();
+  }
 
   atualizarPausa();
+  atualizarAudio();
 
-  document.getElementById("painel").style.display = "block";
-  document.getElementById("tituloPainel").textContent = titulo;
-  document.getElementById("descricaoPainel").textContent = descricao || "";
-  document.getElementById("itens").innerHTML = "";
+  document.getElementById("painel").style.display="block";
+  document.getElementById("tituloPainel").textContent=titulo;
+  document.getElementById("descricaoPainel").textContent=descricao||"";
+  document.getElementById("itens").innerHTML="";
 }
 
-function adicionarItem(nome, descricao, acao, texto) {
-  const div = document.createElement("div");
-  div.className = "item";
-
-  const h = document.createElement("b");
-  h.textContent = nome;
-
-  const p = document.createElement("p");
-  p.textContent = descricao;
-
-  const b = document.createElement("button");
-  b.textContent = texto;
-  b.onclick = acao;
-
-  div.append(h, p, b);
+function adicionarItem(nome,descricao,acao,texto){
+  const div=document.createElement("div");
+  div.className="item";
+  const h=document.createElement("b");
+  h.textContent=nome;
+  const p=document.createElement("p");
+  p.textContent=descricao;
+  const b=document.createElement("button");
+  b.textContent=texto;
+  b.onclick=acao;
+  div.append(h,p,b);
   document.getElementById("itens").appendChild(div);
 }
 
-function abrirGaragem() {
-  abrirPainel(
-    "🚜 GARAGEM",
-    "Compre e escolha seu veículo usando as moedas conquistadas."
-  );
-
-  veiculos.forEach((v, i) => {
-    const tem = comprados.includes(i);
-    const atual = selecionado === i;
+function abrirGaragem(){
+  abrirPainel("🚜 GARAGEM","Compre e escolha seu veículo usando as moedas conquistadas.");
+  veiculos.forEach((v,i)=>{
+    const tem=comprados.includes(i);
+    const atual=selecionado===i;
 
     adicionarItem(
       v.nome,
-      (v.tipo === "trator" ? "Trator agrícola" : "Moto de trilha") +
-      " • " + (v.preco === 0 ? "Inicial" : v.preco + " moedas"),
-
-      () => {
-        if (!comprados.includes(i)) {
-          if (moedas < v.preco) {
+      (v.tipo==="trator"?"Trator agrícola":"Moto de trilha")+
+      " • "+(v.preco===0?"Inicial":v.preco+" moedas"),
+      ()=>{
+        if(!comprados.includes(i)){
+          if(moedas<v.preco){
             alert("Você não tem moedas suficientes!");
             return;
           }
-
-          moedas -= v.preco;
+          moedas-=v.preco;
           comprados.push(i);
         }
 
-        selecionado = i;
-
-        if (v.tipo === "moto") carretaEngatada = false;
+        selecionado=i;
+        if(v.tipo==="moto")carretaEngatada=false;
 
         guardar();
         atualizarHUD();
         abrirGaragem();
       },
-
-      atual ? "SELECIONADO" : tem ? "USAR" : "COMPRAR"
+      atual?"SELECIONADO":tem?"USAR":"COMPRAR"
     );
   });
 }
 
-function abrirCarreta() {
-  abrirPainel(
-    "🛒 CARRETA RURAL",
-    "Compre a carreta separadamente e engate-a no seu trator."
-  );
+function abrirCarreta(){
+  abrirPainel("🛒 CARRETA RURAL","Compre a carreta separadamente e engate-a no seu trator.");
 
   adicionarItem(
     "Carreta vermelha",
     "Reboque rural decorativo. Preço: 250 moedas.",
-
-    () => {
-      if (carretaComprada) {
+    ()=>{
+      if(carretaComprada){
         alert("Você já comprou a carreta!");
         return;
       }
-
-      if (moedas < 250) {
+      if(moedas<250){
         alert("Você precisa de 250 moedas para comprar a carreta.");
         return;
       }
-
-      moedas -= 250;
-      carretaComprada = true;
-
+      moedas-=250;
+      carretaComprada=true;
       guardar();
       atualizarHUD();
       abrirCarreta();
     },
-
-    carretaComprada ? "COMPRADA" : "COMPRAR • 250 🪙"
+    carretaComprada?"COMPRADA":"COMPRAR • 250 🪙"
   );
 
   let descricao;
-
-  if (!carretaComprada) {
-    descricao = "Compre a carreta primeiro.";
-  } else if (veiculos[selecionado].tipo !== "trator") {
-    descricao = "Selecione um trator na garagem.";
-  } else if (carretaEngatada) {
-    descricao = "A carreta está engatada no trator.";
-  } else {
-    descricao = "A carreta está desengatada.";
-  }
+  if(!carretaComprada)descricao="Compre a carreta primeiro.";
+  else if(veiculos[selecionado].tipo!=="trator")descricao="Selecione um trator na garagem.";
+  else descricao=carretaEngatada?"A carreta está engatada no trator.":"A carreta está desengatada.";
 
   adicionarItem(
     "Engatar / desengatar",
     descricao,
-
-    () => {
-      if (!carretaComprada) {
+    ()=>{
+      if(!carretaComprada){
         alert("Compre a carreta primeiro.");
         return;
       }
-
-      if (veiculos[selecionado].tipo !== "trator") {
+      if(veiculos[selecionado].tipo!=="trator"){
         alert("A carreta só pode ser engatada em um trator.");
         return;
       }
-
-      carretaEngatada = !carretaEngatada;
+      carretaEngatada=!carretaEngatada;
       guardar();
       abrirCarreta();
     },
-
-    !carretaComprada ? "BLOQUEADO" :
-      carretaEngatada ? "DESENGATAR" : "ENGATAR"
+    !carretaComprada?"BLOQUEADO":carretaEngatada?"DESENGATAR":"ENGATAR"
   );
 }
 
-function fecharPainel() {
-  document.getElementById("painel").style.display = "none";
-  painelAberto = false;
+function fecharPainel(){
+  document.getElementById("painel").style.display="none";
+  painelAberto=false;
 
-  if (!jogoEncerrado) {
-    jogoPausado = false;
-    if (sceneJogo) sceneJogo.physics.world.resume();
+  if(!jogoEncerrado){
+    jogoPausado=false;
+    if(sceneJogo){
+      sceneJogo.physics.world.resume();
+    }
   }
 
   atualizarPausa();
+  atualizarAudio();
 }
 
-function pausar() {
-  if (painelAberto || jogoEncerrado || !sceneJogo) return;
+function pausar(){
+  if(painelAberto||jogoEncerrado||!sceneJogo)return;
 
-  jogoPausado = !jogoPausado;
+  jogoPausado=!jogoPausado;
 
-  if (jogoPausado) {
-    sceneJogo.physics.world.pause();
-  } else {
-    sceneJogo.physics.world.resume();
-  }
+  if(jogoPausado)sceneJogo.physics.world.pause();
+  else sceneJogo.physics.world.resume();
 
   atualizarPausa();
+  atualizarAudio();
 }
 
-/* =========================================
+/* =====================================
    CONTROLES
-========================================= */
+===================================== */
 
-const botaoFreio = document.getElementById("frear");
+const botaoFreio=document.getElementById("frear");
 
-botaoFreio.addEventListener("pointerdown", e => {
+botaoFreio.addEventListener("pointerdown",e=>{
   e.preventDefault();
-
-  if (!jogoPausado && !jogoEncerrado) freando = true;
-
-  try { botaoFreio.setPointerCapture(e.pointerId); } catch (err) {}
+  if(!jogoPausado&&!jogoEncerrado)freando=true;
+  try{botaoFreio.setPointerCapture(e.pointerId);}catch(err){}
 });
 
-function soltarFreio() {
-  freando = false;
-}
+function soltarFreio(){freando=false;}
+botaoFreio.addEventListener("pointerup",soltarFreio);
+botaoFreio.addEventListener("pointercancel",soltarFreio);
+botaoFreio.addEventListener("lostpointercapture",soltarFreio);
+window.addEventListener("blur",soltarFreio);
 
-botaoFreio.addEventListener("pointerup", soltarFreio);
-botaoFreio.addEventListener("pointercancel", soltarFreio);
-botaoFreio.addEventListener("lostpointercapture", soltarFreio);
-window.addEventListener("blur", soltarFreio);
-
-document.getElementById("pular").addEventListener("pointerdown", e => {
+document.getElementById("pular").addEventListener("pointerdown",e=>{
   e.preventDefault();
-  if (sceneJogo) sceneJogo.pular();
+  iniciarAudio();
+  if(sceneJogo)sceneJogo.pular();
 });
 
-/* =========================================
+/* =====================================
    PHASER
-========================================= */
+===================================== */
 
-if (typeof Phaser === "undefined") {
-  document.getElementById("game").innerHTML =
-    '<p style="padding:20px">Não foi possível carregar o jogo. Confira sua conexão com a internet e recarregue a página.</p>';
+if(typeof Phaser==="undefined"){
+  document.getElementById("game").innerHTML=
+    '<p style="padding:20px">Não foi possível carregar o jogo. Confira sua conexão e recarregue a página.</p>';
   throw new Error("Phaser não foi carregado.");
 }
 
-const config = {
-  type: Phaser.AUTO,
-  parent: "game",
-  backgroundColor: "#8fd5f2",
-
-  scale: {
-    mode: Phaser.Scale.RESIZE,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: 900,
-    height: 500
+const config={
+  type:Phaser.AUTO,
+  parent:"game",
+  backgroundColor:"#8fd5f2",
+  scale:{
+    mode:Phaser.Scale.RESIZE,
+    autoCenter:Phaser.Scale.CENTER_BOTH,
+    width:900,
+    height:500
   },
-
-  physics: {
-    default: "arcade",
-    arcade: {
-      gravity: { y: 1000 },
-      debug: false
-    }
+  physics:{
+    default:"arcade",
+    arcade:{gravity:{y:1000},debug:false}
   },
-
-  scene: {
-    create: criarJogo,
-    update: atualizarJogo
-  }
+  scene:{create:criarJogo,update:atualizarJogo}
 };
 
-const game = new Phaser.Game(config);
+const game=new Phaser.Game(config);
 
-/* =========================================
-   CRIAR PARTIDA
-========================================= */
+/* =====================================
+   CRIAR / RECRIAR PARTIDA
+===================================== */
 
-function criarJogo() {
-  const s = this;
-  sceneJogo = s;
+function criarJogo(){
+  const s=this;
+  sceneJogo=s;
 
-  s.distancia = 0;
-  s.velocidade = 300;
-  s.tempoObstaculo = 0;
-  s.tempoMoeda = 0;
-  s.ultimoBioma = -1;
-  s.teclaAnterior = false;
-  s.pAnterior = false;
-  s.proximoObstaculo = 850;
-  s.proximaMoeda = 400;
+  // IMPORTANTE: limpa o estado global em toda criação da cena.
+  jogoEncerrado=false;
+  jogoPausado=false;
+  painelAberto=false;
+  freando=false;
+  distancia=0;
+  vidas=3;
+  pulos=0;
+  invencivel=0;
 
-  s.chaoY = s.scale.height - 75;
+  s.distancia=0;
+  s.velocidade=300;
+  s.tempoObstaculo=0;
+  s.tempoMoeda=0;
+  s.pAnterior=false;
+  s.teclaAnterior=false;
+  s.chaoY=s.scale.height-75;
 
-  s.fundo = s.add.graphics().setDepth(0);
-  s.cenario = s.add.graphics().setDepth(1);
-  s.objetosDesenho = s.add.graphics().setDepth(4);
-  s.carretaDesenho = s.add.graphics().setDepth(5);
-  s.veiculoDesenho = s.add.graphics().setDepth(6);
+  // Evita que a física continue pausada após reiniciar.
+  s.physics.world.resume();
 
-  s.chao = s.add.rectangle(
-    s.scale.width / 2,
-    s.chaoY + 40,
-    s.scale.width + 300,
-    80,
-    0x000000,
-    0
+  s.fundo=s.add.graphics().setDepth(0);
+  s.cenario=s.add.graphics().setDepth(1);
+  s.objetosDesenho=s.add.graphics().setDepth(4);
+  s.carretaDesenho=s.add.graphics().setDepth(5);
+  s.veiculoDesenho=s.add.graphics().setDepth(6);
+
+  s.chao=s.add.rectangle(
+    s.scale.width/2,s.chaoY+40,s.scale.width+300,80,0x000000,0
   );
+  s.physics.add.existing(s.chao,true);
 
-  s.physics.add.existing(s.chao, true);
-
-  s.jogador = s.add.rectangle(
-    130,
-    s.chaoY - 18,
-    48,
-    34,
-    0x000000,
-    0
-  );
-
+  s.jogador=s.add.rectangle(130,s.chaoY-18,48,34,0x000000,0);
   s.physics.add.existing(s.jogador);
-
   s.jogador.body.setCollideWorldBounds(false);
-  s.jogador.body.setMaxVelocity(650, 850);
+  s.jogador.body.setMaxVelocity(650,850);
 
-  s.obstaculos = s.physics.add.group({
-    allowGravity: false,
-    immovable: true
+  s.obstaculos=s.physics.add.group({allowGravity:false,immovable:true});
+  s.moedasGrupo=s.physics.add.group({allowGravity:false,immovable:true});
+
+  s.physics.add.collider(s.jogador,s.chao,()=>{
+    if(s.jogador.body.blocked.down||s.jogador.body.touching.down)pulos=0;
   });
 
-  s.moedasGrupo = s.physics.add.group({
-    allowGravity: false,
-    immovable: true
-  });
-
-  s.physics.add.collider(s.jogador, s.chao, () => {
-    if (s.jogador.body.blocked.down ||
-        s.jogador.body.touching.down) {
-      pulos = 0;
-    }
-  });
-
-  s.physics.add.overlap(s.jogador, s.obstaculos, (j, o) => {
-    if (invencivel > 0 || jogoEncerrado || !o.active) return;
-
+  s.physics.add.overlap(s.jogador,s.obstaculos,(j,o)=>{
+    if(invencivel>0||jogoEncerrado||!o.active)return;
     o.destroy();
-    vidas = Math.max(0, vidas - 1);
-    invencivel = 1.3;
-
+    vidas=Math.max(0,vidas-1);
+    invencivel=1.3;
     atualizarHUD();
-
-    if (vidas <= 0) encerrarJogo();
+    if(vidas<=0)encerrarJogo();
   });
 
-  s.physics.add.overlap(s.jogador, s.moedasGrupo, (j, m) => {
-    if (!m.active) return;
-
+  s.physics.add.overlap(s.jogador,s.moedasGrupo,(j,m)=>{
+    if(!m.active)return;
     m.destroy();
-    moedas += 10;
-
+    moedas+=10;
     guardar();
     atualizarHUD();
   });
 
-  s.teclas = s.input.keyboard.addKeys({
-    space: Phaser.Input.Keyboard.KeyCodes.SPACE,
-    up: Phaser.Input.Keyboard.KeyCodes.UP,
-    w: Phaser.Input.Keyboard.KeyCodes.W,
-    p: Phaser.Input.Keyboard.KeyCodes.P
+  s.teclas=s.input.keyboard.addKeys({
+    space:Phaser.Input.Keyboard.KeyCodes.SPACE,
+    up:Phaser.Input.Keyboard.KeyCodes.UP,
+    w:Phaser.Input.Keyboard.KeyCodes.W,
+    p:Phaser.Input.Keyboard.KeyCodes.P
   });
 
-  s.pular = () => {
-    if (jogoPausado || jogoEncerrado || painelAberto) return;
-    if (pulos >= 2) return;
-
+  s.pular=()=>{
+    if(jogoPausado||jogoEncerrado||painelAberto)return;
+    if(pulos>=2)return;
     pulos++;
-
-    // O segundo toque permite um novo impulso no ar.
-    s.jogador.body.setVelocityY(pulos === 1 ? -465 : -425);
+    s.jogador.body.setVelocityY(pulos===1?-465:-425);
   };
 
-  // Toque no cenário também permite pular.
-  s.input.on("pointerdown", pointer => {
-    if (painelAberto || jogoPausado || jogoEncerrado) return;
-
-    if (pointer.y < s.scale.height - 65) {
-      s.pular();
-    }
+  s.input.on("pointerdown",pointer=>{
+    if(painelAberto||jogoPausado||jogoEncerrado)return;
+    if(pointer.y<s.scale.height-65)s.pular();
   });
 
-  s.scale.on("resize", tamanho => {
-    s.chaoY = tamanho.height - 75;
-    s.chao.setPosition(tamanho.width / 2, s.chaoY + 40);
-    s.chao.setSize(tamanho.width + 300, 80);
+  s.scale.on("resize",tamanho=>{
+    s.chaoY=tamanho.height-75;
+    s.chao.setPosition(tamanho.width/2,s.chaoY+40);
+    s.chao.setSize(tamanho.width+300,80);
     s.chao.body.updateFromGameObject();
     desenharCenario.call(s);
   });
 
   atualizarHUD();
+  atualizarPausa();
+  atualizarAudio();
   desenharCenario.call(s);
 }
 
-/* =========================================
-   DESENHAR TRATOR
-========================================= */
+/* =====================================
+   DESENHO DO TRATOR
+===================================== */
 
-function desenharTrator(g, x, y, cor) {
-  const ret = (px, py, w, h, c) => {
-    g.fillStyle(c, 1);
-    g.fillRect(px, py, w, h);
-  };
+function desenharTrator(g,x,y,cor){
+  const ret=(px,py,w,h,c)=>{g.fillStyle(c,1);g.fillRect(px,py,w,h);};
+  const circ=(px,py,r,c)=>{g.fillStyle(c,1);g.fillCircle(px,py,r);};
 
-  const circ = (px, py, r, c) => {
-    g.fillStyle(c, 1);
-    g.fillCircle(px, py, r);
-  };
+  g.fillStyle(0x263525,0.25);
+  g.fillEllipse(x+3,y+22,94,13);
 
-  // Sombra
-  g.fillStyle(0x263525, 0.25);
-  g.fillEllipse(x + 3, y + 22, 94, 13);
+  circ(x-22,y+12,21,0x151515);
+  circ(x-22,y+12,15,0x333333);
+  circ(x-22,y+12,10,0x777777);
+  circ(x-22,y+12,5,0xc3c3c3);
 
-  // Pneus
-  circ(x - 22, y + 12, 21, 0x151515);
-  circ(x - 22, y + 12, 15, 0x333333);
-  circ(x - 22, y + 12, 10, 0x777777);
-  circ(x - 22, y + 12, 5, 0xc3c3c3);
+  circ(x+29,y+14,13,0x151515);
+  circ(x+29,y+14,8,0x555555);
+  circ(x+29,y+14,4,0xc3c3c3);
 
-  circ(x + 29, y + 14, 13, 0x151515);
-  circ(x + 29, y + 14, 8, 0x555555);
-  circ(x + 29, y + 14, 4, 0xc3c3c3);
-
-  g.lineStyle(2, 0x777777, 1);
-
-  for (let i = 0; i < 8; i++) {
-    const a = i * Math.PI / 4;
-
-    g.lineBetween(
-      x - 22 + Math.cos(a) * 14,
-      y + 12 + Math.sin(a) * 14,
-      x - 22 + Math.cos(a) * 19,
-      y + 12 + Math.sin(a) * 19
-    );
+  g.lineStyle(2,0x777777,1);
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI/4;
+    g.lineBetween(x-22+Math.cos(a)*14,y+12+Math.sin(a)*14,
+      x-22+Math.cos(a)*19,y+12+Math.sin(a)*19);
   }
 
-  ret(x - 33, y + 1, 65, 6, 0x292d29);
+  ret(x-33,y+1,65,6,0x292d29);
+  g.lineStyle(5,cor,1);
+  g.strokeCircle(x-22,y+12,22);
 
-  // Para-lama
-  g.lineStyle(5, cor, 1);
-  g.strokeCircle(x - 22, y + 12, 22);
+  ret(x-7,y-18,43,22,cor);
+  ret(x+19,y-21,17,7,0x343b34);
+  ret(x-5,y-2,37,4,0x202620);
+  ret(x+28,y-15,9,13,0x252925);
+  ret(x+29,y-13,7,9,0x151515);
 
-  // Capô e grade
-  ret(x - 7, y - 18, 43, 22, cor);
-  ret(x + 19, y - 21, 17, 7, 0x343b34);
-  ret(x - 5, y - 2, 37, 4, 0x202620);
-  ret(x + 28, y - 15, 9, 13, 0x252925);
-  ret(x + 29, y - 13, 7, 9, 0x151515);
+  for(let i=0;i<4;i++)ret(x+30,y-12+i*2,5,1,0xb5b5b5);
 
-  for (let i = 0; i < 4; i++) {
-    ret(x + 30, y - 12 + i * 2, 5, 1, 0xb5b5b5);
-  }
+  circ(x+34,y-17,4,0xffe99a);
+  circ(x+34,y-17,2,0xffffff);
 
-  circ(x + 34, y - 17, 4, 0xffe99a);
-  circ(x + 34, y - 17, 2, 0xffffff);
+  ret(x-22,y-42,27,25,cor);
+  ret(x-18,y-39,19,16,0x27322b);
+  ret(x-16,y-37,15,12,0x82d7ef);
+  g.lineStyle(2,0xd7f5ff,0.8);
+  g.lineBetween(x-14,y-35,x-7,y-27);
 
-  // Cabine
-  ret(x - 22, y - 42, 27, 25, cor);
-  ret(x - 18, y - 39, 19, 16, 0x27322b);
-  ret(x - 16, y - 37, 15, 12, 0x82d7ef);
-
-  g.lineStyle(2, 0xd7f5ff, 0.8);
-  g.lineBetween(x - 14, y - 35, x - 7, y - 27);
-
-  ret(x - 25, y - 45, 33, 5, 0x242a24);
-  ret(x - 22, y - 19, 4, 7, 0x282828);
-
-  // Escapamento
-  ret(x + 8, y - 34, 4, 15, 0x515151);
-  ret(x + 7, y - 38, 6, 4, 0x242424);
-
-  // Banco
-  ret(x - 9, y - 20, 8, 4, 0x202020);
+  ret(x-25,y-45,33,5,0x242a24);
+  ret(x-22,y-19,4,7,0x282828);
+  ret(x+8,y-34,4,15,0x515151);
+  ret(x+7,y-38,6,4,0x242424);
+  ret(x-9,y-20,8,4,0x202020);
 }
 
-/* =========================================
-   DESENHAR MOTO E PILOTO
-========================================= */
+/* =====================================
+   DESENHO DA MOTO
+===================================== */
 
-function desenharMoto(g, x, y, cor) {
-  const ret = (px, py, w, h, c) => {
-    g.fillStyle(c, 1);
-    g.fillRect(px, py, w, h);
-  };
+function desenharMoto(g,x,y,cor){
+  const ret=(px,py,w,h,c)=>{g.fillStyle(c,1);g.fillRect(px,py,w,h);};
+  const circ=(px,py,r,c)=>{g.fillStyle(c,1);g.fillCircle(px,py,r);};
 
-  const circ = (px, py, r, c) => {
-    g.fillStyle(c, 1);
-    g.fillCircle(px, py, r);
-  };
+  g.fillStyle(0x263525,0.25);
+  g.fillEllipse(x+1,y+23,77,10);
 
-  g.fillStyle(0x263525, 0.25);
-  g.fillEllipse(x + 1, y + 23, 77, 10);
+  circ(x-23,y+12,12,0x141414);
+  circ(x-23,y+12,7,0x777777);
+  circ(x-23,y+12,3,0xc4c4c4);
+  circ(x+25,y+12,12,0x141414);
+  circ(x+25,y+12,7,0x777777);
+  circ(x+25,y+12,3,0xc4c4c4);
 
-  circ(x - 23, y + 12, 12, 0x141414);
-  circ(x - 23, y + 12, 7, 0x777777);
-  circ(x - 23, y + 12, 3, 0xc4c4c4);
+  g.lineStyle(4,0xb8b8b8,1);
+  g.lineBetween(x-23,y+12,x-8,y-5);
+  g.lineBetween(x-8,y-5,x+25,y+12);
+  g.lineBetween(x-8,y-5,x+5,y+12);
+  g.lineBetween(x+22,y-7,x+25,y+12);
 
-  circ(x + 25, y + 12, 12, 0x141414);
-  circ(x + 25, y + 12, 7, 0x777777);
-  circ(x + 25, y + 12, 3, 0xc4c4c4);
+  ret(x-15,y-11,28,9,cor);
+  ret(x-6,y-17,16,8,cor);
+  ret(x-3,y-22,6,7,0x252525);
+  ret(x-16,y-14,12,4,0x202020);
+  ret(x+12,y-7,14,5,0x303030);
 
-  // Chassi e suspensão
-  g.lineStyle(4, 0xb8b8b8, 1);
-  g.lineBetween(x - 23, y + 12, x - 8, y - 5);
-  g.lineBetween(x - 8, y - 5, x + 25, y + 12);
-  g.lineBetween(x - 8, y - 5, x + 5, y + 12);
-  g.lineBetween(x + 22, y - 7, x + 25, y + 12);
+  circ(x+29,y-7,4,0xffedaa);
+  circ(x+29,y-7,2,0xffffff);
 
-  // Carenagem
-  ret(x - 15, y - 11, 28, 9, cor);
-  ret(x - 6, y - 17, 16, 8, cor);
-  ret(x - 3, y - 22, 6, 7, 0x252525);
+  g.lineStyle(3,0x292929,1);
+  g.lineBetween(x+19,y-8,x+27,y-17);
+  g.lineBetween(x+24,y-14,x+32,y-14);
 
-  ret(x - 16, y - 14, 12, 4, 0x202020);
-  ret(x + 12, y - 7, 14, 5, 0x303030);
+  circ(x+1,y-30,7,0x171b1d);
+  circ(x+3,y-31,4,0x4b565b);
+  ret(x-4,y-24,11,13,0x343f45);
 
-  circ(x + 29, y - 7, 4, 0xffedaa);
-  circ(x + 29, y - 7, 2, 0xffffff);
-
-  g.lineStyle(3, 0x292929, 1);
-  g.lineBetween(x + 19, y - 8, x + 27, y - 17);
-  g.lineBetween(x + 24, y - 14, x + 32, y - 14);
-
-  // Piloto
-  circ(x + 1, y - 30, 7, 0x171b1d);
-  circ(x + 3, y - 31, 4, 0x4b565b);
-  ret(x - 4, y - 24, 11, 13, 0x343f45);
-
-  g.lineStyle(4, 0x252b2e, 1);
-  g.lineBetween(x, y - 18, x - 10, y - 7);
-  g.lineBetween(x + 3, y - 18, x + 14, y - 12);
-  g.lineBetween(x - 1, y - 12, x + 7, y - 3);
+  g.lineStyle(4,0x252b2e,1);
+  g.lineBetween(x,y-18,x-10,y-7);
+  g.lineBetween(x+3,y-18,x+14,y-12);
+  g.lineBetween(x-1,y-12,x+7,y-3);
 }
 
-/* =========================================
-   DESENHAR CARRETA
-========================================= */
+/* =====================================
+   DESENHO DA CARRETA
+===================================== */
 
-function desenharCarreta(g, x, y) {
+function desenharCarreta(g,x,y){
   g.clear();
 
-  const ret = (px, py, w, h, c) => {
-    g.fillStyle(c, 1);
-    g.fillRect(px, py, w, h);
-  };
+  const ret=(px,py,w,h,c)=>{g.fillStyle(c,1);g.fillRect(px,py,w,h);};
+  const circ=(px,py,r,c)=>{g.fillStyle(c,1);g.fillCircle(px,py,r);};
 
-  const circ = (px, py, r, c) => {
-    g.fillStyle(c, 1);
-    g.fillCircle(px, py, r);
-  };
+  ret(x-15,y-5,35,4,0x303030);
+  circ(x+17,y-3,3,0x888888);
 
-  // Engate atrás do trator
-  ret(x - 15, y - 5, 35, 4, 0x303030);
-  circ(x + 17, y - 3, 3, 0x888888);
+  ret(x+17,y-29,60,26,0x8b211d);
+  ret(x+20,y-27,54,21,0xd43c31);
+  ret(x+18,y-5,59,4,0x79221b);
+  ret(x+20,y-29,58,3,0xb83229);
 
-  // Caixa
-  ret(x + 17, y - 29, 60, 26, 0x8b211d);
-  ret(x + 20, y - 27, 54, 21, 0xd43c31);
-  ret(x + 18, y - 5, 59, 4, 0x79221b);
-  ret(x + 20, y - 29, 58, 3, 0xb83229);
+  g.lineStyle(2,0xf1c2b3,1);
+  g.lineBetween(x+25,y-22,x+69,y-22);
 
-  g.lineStyle(2, 0xf1c2b3, 1);
-  g.lineBetween(x + 25, y - 22, x + 69, y - 22);
-
-  // Rodas
-  circ(x + 32, y + 3, 8, 0x171717);
-  circ(x + 32, y + 3, 4, 0x888888);
-  circ(x + 67, y + 3, 8, 0x171717);
-  circ(x + 67, y + 3, 4, 0x888888);
+  circ(x+32,y+3,8,0x171717);
+  circ(x+32,y+3,4,0x888888);
+  circ(x+67,y+3,8,0x171717);
+  circ(x+67,y+3,4,0x888888);
 }
 
-/* =========================================
+/* =====================================
    CENÁRIO E BIOMAS
-========================================= */
+===================================== */
 
-function desenharCenario() {
-  const w = this.scale.width;
-  const h = this.scale.height;
-  const g = this.fundo;
-  const c = this.cenario;
-
-  this.chaoY = h - 75;
-
+function desenharCenario(){
+  const w=this.scale.width,h=this.scale.height;
+  const g=this.fundo,c=this.cenario;
+  this.chaoY=h-75;
   g.clear();
   c.clear();
 
-  // Céu
-  g.fillGradientStyle(
-    0x64bce9, 0x64bce9,
-    0xd9f2ff, 0xd9f2ff, 1
-  );
-  g.fillRect(0, 0, w, h);
+  g.fillGradientStyle(0x64bce9,0x64bce9,0xd9f2ff,0xd9f2ff,1);
+  g.fillRect(0,0,w,h);
 
-  // Sol
-  g.fillStyle(0xffe99b, 1);
-  g.fillCircle(w - 90, 75, 29);
+  g.fillStyle(0xffe99b,1);
+  g.fillCircle(w-90,75,29);
 
-  // Nuvens
-  const deslocamento = (this.distancia * 0.25) % (w + 180);
-
-  for (let i = 0; i < 4; i++) {
-    const x = ((i * 250 - deslocamento + w + 180) %
-      (w + 180)) - 70;
-    const y = 45 + (i % 2) * 40;
-
-    g.fillStyle(0xffffff, 0.85);
-    g.fillEllipse(x, y, 58, 21);
-    g.fillEllipse(x - 15, y + 3, 29, 17);
-    g.fillEllipse(x + 15, y + 1, 34, 18);
+  const deslocamento=(this.distancia*0.25)%(w+180);
+  for(let i=0;i<4;i++){
+    const x=((i*250-deslocamento+w+180)%(w+180))-70;
+    const y=45+(i%2)*40;
+    g.fillStyle(0xffffff,0.85);
+    g.fillEllipse(x,y,58,21);
+    g.fillEllipse(x-15,y+3,29,17);
+    g.fillEllipse(x+15,y+1,34,18);
   }
 
-  const bioma = Math.floor(this.distancia / 400) % 4;
+  const bioma=Math.floor(this.distancia/400)%4;
+  const cores=[0x7faf69,0x9cba76,0x5e9655,0x8bb5a0];
 
-  const cores = [
-    0x7faf69,
-    0x9cba76,
-    0x5e9655,
-    0x8bb5a0
-  ];
+  g.fillStyle(cores[bioma],1);
+  g.fillTriangle(0,this.chaoY,100,this.chaoY-100,240,this.chaoY);
+  g.fillTriangle(200,this.chaoY,400,this.chaoY-75,570,this.chaoY);
+  g.fillTriangle(w-260,this.chaoY,w-100,this.chaoY-90,w,this.chaoY);
 
-  g.fillStyle(cores[bioma], 1);
-  g.fillTriangle(0, this.chaoY, 100, this.chaoY - 100, 240, this.chaoY);
-  g.fillTriangle(200, this.chaoY, 400, this.chaoY - 75, 570, this.chaoY);
-  g.fillTriangle(w - 260, this.chaoY, w - 100, this.chaoY - 90, w, this.chaoY);
-
-  // Celeiro
-  if (bioma === 0 || bioma === 2) {
-    const bx = w * 0.68;
-    const by = this.chaoY - 60;
-
-    g.fillStyle(0xa83a2c, 1);
-    g.fillRect(bx, by, 75, 48);
-
-    g.fillStyle(0x70231e, 1);
-    g.fillTriangle(bx - 10, by, bx + 37, by - 30, bx + 85, by);
-
-    g.fillStyle(0xe8e0bd, 1);
-    g.fillRect(bx + 28, by + 20, 20, 28);
-
-    g.lineStyle(2, 0xefe6c6, 1);
-    g.lineBetween(bx + 28, by + 20, bx + 48, by + 48);
-    g.lineBetween(bx + 48, by + 20, bx + 28, by + 48);
+  if(bioma===0||bioma===2){
+    const bx=w*0.68,by=this.chaoY-60;
+    g.fillStyle(0xa83a2c,1);
+    g.fillRect(bx,by,75,48);
+    g.fillStyle(0x70231e,1);
+    g.fillTriangle(bx-10,by,bx+37,by-30,bx+85,by);
+    g.fillStyle(0xe8e0bd,1);
+    g.fillRect(bx+28,by+20,20,28);
+    g.lineStyle(2,0xefe6c6,1);
+    g.lineBetween(bx+28,by+20,bx+48,by+48);
+    g.lineBetween(bx+48,by+20,bx+28,by+48);
   }
 
-  // Árvores
-  const arvoreOffset = (this.distancia * 0.7) % 170;
-
-  for (let i = 0; i < 8; i++) {
-    const tx = ((i * 170 - arvoreOffset + w + 170) %
-      (w + 170)) - 30;
-    const ty = this.chaoY - 30;
-
-    c.fillStyle(0x68462b, 1);
-    c.fillRect(tx - 4, ty - 26, 8, 29);
-
-    c.fillStyle(bioma === 3 ? 0x557d66 : 0x34723a, 1);
-    c.fillCircle(tx, ty - 35, 16);
-    c.fillCircle(tx - 10, ty - 25, 11);
-    c.fillCircle(tx + 10, ty - 24, 12);
+  const arvoreOffset=(this.distancia*0.7)%170;
+  for(let i=0;i<8;i++){
+    const tx=((i*170-arvoreOffset+w+170)%(w+170))-30;
+    const ty=this.chaoY-30;
+    c.fillStyle(0x68462b,1);
+    c.fillRect(tx-4,ty-26,8,29);
+    c.fillStyle(bioma===3?0x557d66:0x34723a,1);
+    c.fillCircle(tx,ty-35,16);
+    c.fillCircle(tx-10,ty-25,11);
+    c.fillCircle(tx+10,ty-24,12);
   }
 
-  // Faixas do chão
-  g.fillStyle(bioma === 3 ? 0x63894b : 0x659943, 1);
-  g.fillRect(0, this.chaoY + 8, w, h - this.chaoY);
+  g.fillStyle(bioma===3?0x63894b:0x659943,1);
+  g.fillRect(0,this.chaoY+8,w,h-this.chaoY);
+  g.fillStyle(0xc4a66a,1);
+  g.fillRect(0,this.chaoY+15,w,7);
+  g.fillStyle(0x8c754b,1);
+  g.fillRect(0,this.chaoY+22,w,h-this.chaoY-22);
+  g.fillStyle(0xb69a63,0.8);
 
-  g.fillStyle(0xc4a66a, 1);
-  g.fillRect(0, this.chaoY + 15, w, 7);
-
-  g.fillStyle(0x8c754b, 1);
-  g.fillRect(0, this.chaoY + 22, w, h - this.chaoY - 22);
-
-  g.fillStyle(0xb69a63, 0.8);
-
-  const terraOffset = (this.distancia * 8) % 100;
-
-  for (let i = 0; i < Math.ceil(w / 100) + 1; i++) {
-    const tx = i * 100 - terraOffset;
-    g.fillRect(tx, this.chaoY + 39, 24, 3);
-    g.fillRect(tx + 43, this.chaoY + 56, 17, 2);
+  const terraOffset=(this.distancia*8)%100;
+  for(let i=0;i<Math.ceil(w/100)+1;i++){
+    const tx=i*100-terraOffset;
+    g.fillRect(tx,this.chaoY+39,24,3);
+    g.fillRect(tx+43,this.chaoY+56,17,2);
   }
 
-  const nomes = [
-    "Fazenda",
-    "Campo aberto",
-    "Plantação",
-    "Estrada rural"
-  ];
+  const nomes=["Fazenda","Campo aberto","Plantação","Estrada rural"];
 
-  if (!this.textoBioma) {
-    this.textoBioma = this.add.text(12, 10, "", {
-      fontFamily: "Arial",
-      fontSize: "15px",
-      fontStyle: "bold",
-      color: "#ffffff",
-      stroke: "#284329",
-      strokeThickness: 3
+  if(!this.textoBioma){
+    this.textoBioma=this.add.text(12,10,"",{
+      fontFamily:"Arial",fontSize:"15px",fontStyle:"bold",
+      color:"#ffffff",stroke:"#284329",strokeThickness:3
     }).setDepth(9);
   }
 
-  this.textoBioma.setText(
-    "🌾 " + nomes[bioma] +
-    " • " + Math.floor(this.distancia) + " m"
-  );
+  this.textoBioma.setText("🌾 "+nomes[bioma]+" • "+Math.floor(this.distancia)+" m");
 }
 
-/* =========================================
-   CRIAR OBSTÁCULOS E MOEDAS
-========================================= */
+/* =====================================
+   OBSTÁCULOS E MOEDAS
+===================================== */
 
-function criarObstaculo() {
-  const w = this.scale.width;
-  const tipo = Math.random() < 0.5 ? "pedra" : "fardo";
+function criarObstaculo(){
+  const w=this.scale.width;
+  const tipo=Math.random()<0.5?"pedra":"fardo";
+  const largura=tipo==="pedra"?34:43;
+  const altura=tipo==="pedra"?27:25;
 
-  const largura = tipo === "pedra" ? 34 : 43;
-  const altura = tipo === "pedra" ? 27 : 25;
-
-  const o = this.add.rectangle(
-    w + 45,
-    this.chaoY - altura / 2,
-    largura,
-    altura,
-    0x000000,
-    0
-  );
-
+  const o=this.add.rectangle(w+45,this.chaoY-altura/2,largura,altura,0x000000,0);
   this.physics.add.existing(o);
   o.body.setAllowGravity(false);
   o.body.setImmovable(true);
-  o.body.setSize(largura, altura);
-
-  o.tipo = tipo;
+  o.body.setSize(largura,altura);
+  o.tipo=tipo;
   this.obstaculos.add(o);
 }
 
-function criarMoeda() {
-  const m = this.add.circle(
-    this.scale.width + 30,
-    this.chaoY - 55 - Math.random() * 55,
-    10,
-    0x000000,
-    0
+function criarMoeda(){
+  const m=this.add.circle(
+    this.scale.width+30,
+    this.chaoY-55-Math.random()*55,
+    10,0x000000,0
   );
-
   this.physics.add.existing(m);
   m.body.setAllowGravity(false);
   m.body.setImmovable(true);
   m.body.setCircle(10);
-
   this.moedasGrupo.add(m);
 }
 
-/* =========================================
-   DESENHAR OBJETOS
-========================================= */
-
-function desenharObjetos() {
-  const g = this.objetosDesenho;
+function desenharObjetos(){
+  const g=this.objetosDesenho;
   g.clear();
 
-  this.obstaculos.getChildren().forEach(o => {
-    if (!o.active) return;
+  this.obstaculos.getChildren().forEach(o=>{
+    if(!o.active)return;
 
-    if (o.tipo === "pedra") {
-      g.fillStyle(0x494941, 1);
-      g.fillTriangle(
-        o.x - 19, this.chaoY,
-        o.x - 11, this.chaoY - 28,
-        o.x + 18, this.chaoY
-      );
-
-      g.fillStyle(0x88867d, 1);
-      g.fillTriangle(
-        o.x - 10, this.chaoY - 3,
-        o.x - 5, this.chaoY - 19,
-        o.x + 7, this.chaoY - 3
-      );
-    } else {
-      g.fillStyle(0x98723e, 1);
-      g.fillRoundedRect(o.x - 22, this.chaoY - 26, 44, 25, 5);
-
-      g.fillStyle(0xd6b36d, 1);
-      g.fillCircle(o.x, this.chaoY - 14, 10);
-
-      g.lineStyle(2, 0x9a783f, 1);
-      g.strokeCircle(o.x, this.chaoY - 14, 8);
+    if(o.tipo==="pedra"){
+      g.fillStyle(0x494941,1);
+      g.fillTriangle(o.x-19,this.chaoY,o.x-11,this.chaoY-28,o.x+18,this.chaoY);
+      g.fillStyle(0x88867d,1);
+      g.fillTriangle(o.x-10,this.chaoY-3,o.x-5,this.chaoY-19,o.x+7,this.chaoY-3);
+    }else{
+      g.fillStyle(0x98723e,1);
+      g.fillRoundedRect(o.x-22,this.chaoY-26,44,25,5);
+      g.fillStyle(0xd6b36d,1);
+      g.fillCircle(o.x,this.chaoY-14,10);
+      g.lineStyle(2,0x9a783f,1);
+      g.strokeCircle(o.x,this.chaoY-14,8);
     }
   });
 
-  this.moedasGrupo.getChildren().forEach(m => {
-    if (!m.active) return;
-
-    g.fillStyle(0xb87c00, 1);
-    g.fillCircle(m.x, m.y, 12);
-
-    g.fillStyle(0xffd52a, 1);
-    g.fillCircle(m.x, m.y, 9);
-
-    g.lineStyle(2, 0xfff4a6, 1);
-    g.strokeCircle(m.x, m.y, 7);
-
-    g.fillStyle(0x9a6d00, 1);
-    g.fillRect(m.x - 2, m.y - 5, 4, 10);
+  this.moedasGrupo.getChildren().forEach(m=>{
+    if(!m.active)return;
+    g.fillStyle(0xb87c00,1);
+    g.fillCircle(m.x,m.y,12);
+    g.fillStyle(0xffd52a,1);
+    g.fillCircle(m.x,m.y,9);
+    g.lineStyle(2,0xfff4a6,1);
+    g.strokeCircle(m.x,m.y,7);
+    g.fillStyle(0x9a6d00,1);
+    g.fillRect(m.x-2,m.y-5,4,10);
   });
 }
 
-/* =========================================
+/* =====================================
    ATUALIZAR PARTIDA
-========================================= */
+===================================== */
 
-function atualizarJogo(time, delta) {
-  // A tecla P também funciona para retomar o jogo pausado.
-  const teclaP = this.teclas.p.isDown;
+function atualizarJogo(time,delta){
+  const teclaP=this.teclas.p.isDown;
+  if(teclaP&&!this.pAnterior&&!painelAberto&&!jogoEncerrado)pausar();
+  this.pAnterior=teclaP;
 
-  if (teclaP && !this.pAnterior && !painelAberto && !jogoEncerrado) {
-    pausar();
-  }
+  if(jogoPausado||jogoEncerrado)return;
 
-  this.pAnterior = teclaP;
+  const dt=Math.min(delta/1000,0.04);
+  const w=this.scale.width,h=this.scale.height;
+  this.chaoY=h-75;
 
-  if (jogoPausado || jogoEncerrado) return;
-
-  const dt = Math.min(delta / 1000, 0.04);
-  const w = this.scale.width;
-  const h = this.scale.height;
-
-  this.chaoY = h - 75;
-
-  this.chao.setPosition(w / 2, this.chaoY + 40);
-  this.chao.setSize(w + 300, 80);
+  this.chao.setPosition(w/2,this.chaoY+40);
+  this.chao.setSize(w+300,80);
   this.chao.body.updateFromGameObject();
 
-  // Teclado: cada pressionamento dispara um salto.
-  const pressionando =
-    this.teclas.space.isDown ||
-    this.teclas.up.isDown ||
-    this.teclas.w.isDown;
+  const pressionando=this.teclas.space.isDown||
+    this.teclas.up.isDown||this.teclas.w.isDown;
 
-  if (pressionando && !this.teclaAnterior) this.pular();
+  if(pressionando&&!this.teclaAnterior)this.pular();
+  this.teclaAnterior=pressionando;
 
-  this.teclaAnterior = pressionando;
+  if(invencivel>0)invencivel=Math.max(0,invencivel-dt);
 
-  if (invencivel > 0) {
-    invencivel = Math.max(0, invencivel - dt);
-  }
+  this.velocidade=freando?110:Math.min(480,300+this.distancia*0.025);
+  this.distancia+=this.velocidade*dt/20;
+  distancia=this.distancia;
 
-  // Velocidade e distância.
-  this.velocidade = freando
-    ? 110
-    : Math.min(480, 300 + this.distancia * 0.025);
-
-  this.distancia += this.velocidade * dt / 20;
-  distancia = this.distancia;
-
-  // Atualiza o cenário.
   desenharCenario.call(this);
+  this.tempoObstaculo+=this.velocidade*dt;
 
-  // Intervalos em distância, para evitar obstáculos muito próximos.
-  this.tempoObstaculo += this.velocidade * dt;
-
-  const intervaloObstaculos = Math.max(
-    780,
-    980 - this.distancia * 0.015
-  );
-
-  if (this.tempoObstaculo >= intervaloObstaculos) {
-    this.tempoObstaculo = 0;
+  const intervalo=Math.max(780,980-this.distancia*0.015);
+  if(this.tempoObstaculo>=intervalo){
+    this.tempoObstaculo=0;
     criarObstaculo.call(this);
   }
 
-  this.tempoMoeda += dt;
-
-  if (this.tempoMoeda >= 1.15) {
-    this.tempoMoeda = 0;
+  this.tempoMoeda+=dt;
+  if(this.tempoMoeda>=1.15){
+    this.tempoMoeda=0;
     criarMoeda.call(this);
   }
 
-  // Movimentação dos obstáculos.
-  this.obstaculos.getChildren().forEach(o => {
-    if (!o.active) return;
-
-    o.x -= this.velocidade * dt;
+  this.obstaculos.getChildren().forEach(o=>{
+    if(!o.active)return;
+    o.x-=this.velocidade*dt;
     o.body.updateFromGameObject();
-
-    if (o.x < -80) o.destroy();
+    if(o.x < -80)o.destroy();
   });
 
-  this.moedasGrupo.getChildren().forEach(m => {
-    if (!m.active) return;
-
-    m.x -= this.velocidade * dt;
+  this.moedasGrupo.getChildren().forEach(m=>{
+    if(!m.active)return;
+    m.x-=this.velocidade*dt;
     m.body.updateFromGameObject();
-
-    if (m.x < -40) m.destroy();
+    if(m.x < -40)m.destroy();
   });
 
-  // Atualiza o corpo físico do veículo.
-  this.jogador.x = 130;
+  this.jogador.x=130;
+  const v=veiculos[selecionado];
+  this.jogador.body.setSize(v.tipo==="trator"?48:45,v.tipo==="trator"?31:29);
 
-  const v = veiculos[selecionado];
-
-  if (v.tipo === "trator") {
-    this.jogador.body.setSize(48, 31);
-  } else {
-    this.jogador.body.setSize(45, 29);
-  }
-
-  // Desenhos independentes para evitar apagar o cenário.
   this.veiculoDesenho.clear();
   this.carretaDesenho.clear();
 
-  const x = this.jogador.x;
-  const y = this.jogador.y;
-
-  if (v.tipo === "trator") {
-    desenharTrator(this.veiculoDesenho, x, y, v.cor);
-
-    if (carretaComprada && carretaEngatada) {
-      desenharCarreta(
-        this.carretaDesenho,
-        x - 116,
-        y + 15
-      );
+  const x=this.jogador.x,y=this.jogador.y;
+  if(v.tipo==="trator"){
+    desenharTrator(this.veiculoDesenho,x,y,v.cor);
+    if(carretaComprada&&carretaEngatada){
+      desenharCarreta(this.carretaDesenho,x-116,y+15);
     }
-  } else {
-    desenharMoto(this.veiculoDesenho, x, y, v.cor);
+  }else{
+    desenharMoto(this.veiculoDesenho,x,y,v.cor);
   }
 
-  // Piscar brevemente depois de uma colisão.
-  const alpha = invencivel > 0 && Math.floor(time / 100) % 2 === 0
-    ? 0.35 : 1;
-
+  const alpha=invencivel>0&&Math.floor(time/100)%2===0?0.35:1;
   this.veiculoDesenho.setAlpha(alpha);
   this.carretaDesenho.setAlpha(alpha);
 
   desenharObjetos.call(this);
+  atualizarMotor();
 
-  // Recorde persistente.
-  if (Math.floor(this.distancia) > recorde) {
-    recorde = Math.floor(this.distancia);
+  if(Math.floor(this.distancia)>recorde){
+    recorde=Math.floor(this.distancia);
     atualizarHUD();
     guardar();
   }
 }
 
-/* =========================================
-   FIM DE JOGO E REINÍCIO
-========================================= */
+/* =====================================
+   FIM DE JOGO E REINÍCIO CORRIGIDO
+===================================== */
 
-function encerrarJogo() {
-  if (jogoEncerrado) return;
+function encerrarJogo(){
+  if(jogoEncerrado)return;
 
-  jogoEncerrado = true;
-  jogoPausado = true;
-  freando = false;
+  jogoEncerrado=true;
+  jogoPausado=true;
+  freando=false;
 
-  if (sceneJogo) sceneJogo.physics.world.pause();
+  if(sceneJogo)sceneJogo.physics.world.pause();
 
-  recorde = Math.max(recorde, Math.floor(distancia));
-
+  recorde=Math.max(recorde,Math.floor(distancia));
   guardar();
   atualizarHUD();
   atualizarPausa();
+  atualizarAudio();
 
-  document.getElementById("resultadoFim").textContent =
-    "Distância percorrida: " + Math.floor(distancia) +
-    " metros • Recorde: " + recorde + " metros";
+  document.getElementById("resultadoFim").textContent=
+    "Distância percorrida: "+Math.floor(distancia)+
+    " metros • Recorde: "+recorde+" metros";
 
-  document.getElementById("fim").style.display = "block";
+  document.getElementById("fim").style.display="block";
 }
 
-function reiniciarJogo() {
-  document.getElementById("fim").style.display = "none";
-  document.getElementById("painel").style.display = "none";
+function reiniciarJogo(){
+  // Fecha as telas antes de recriar a partida.
+  document.getElementById("fim").style.display="none";
+  document.getElementById("painel").style.display="none";
 
-  painelAberto = false;
-  jogoPausado = false;
-  jogoEncerrado = false;
-  freando = false;
-  distancia = 0;
-  vidas = 3;
-  pulos = 0;
-  invencivel = 0;
+  painelAberto=false;
+  jogoEncerrado=false;
+  jogoPausado=false;
+  freando=false;
+  distancia=0;
+  vidas=3;
+  pulos=0;
+  invencivel=0;
 
   atualizarHUD();
   atualizarPausa();
 
-  if (sceneJogo) {
-    sceneJogo.scene.restart();
+  // Primeiro retoma a física antiga. Isso evita reiniciar
+  // a cena enquanto o mundo físico permanece pausado.
+  if(sceneJogo){
+    try{
+      sceneJogo.physics.world.resume();
+      sceneJogo.scene.restart();
+    }catch(e){
+      // Se a cena não puder ser reiniciada, recarrega a página.
+      window.location.reload();
+      return;
+    }
+  }else{
+    window.location.reload();
+    return;
   }
+
+  atualizarAudio();
 }
 
+// Garante que a partida comece com os indicadores corretos.
 atualizarHUD();
 atualizarPausa();
 </script>
-
 </body>
 </html>
