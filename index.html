@@ -20,6 +20,8 @@ html, body {
   color: white;
   font-family: Arial, sans-serif;
   touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #topo {
@@ -29,7 +31,7 @@ html, body {
   align-items: center;
   justify-content: space-around;
   gap: 5px;
-  padding: 6px;
+  padding: 5px;
   flex-wrap: wrap;
 }
 
@@ -50,7 +52,7 @@ button:active { transform: scale(.97); }
 #game {
   width: 100%;
   height: calc(100dvh - 120px);
-  min-height: 220px;
+  min-height: 200px;
   position: relative;
   overflow: hidden;
 }
@@ -72,7 +74,7 @@ button:active { transform: scale(.97); }
 
 #pular {
   font-size: 20px;
-  background: #d59a26;
+  background: #e8ad32;
   color: #171717;
   min-width: 125px;
   height: 52px;
@@ -123,27 +125,25 @@ button:active { transform: scale(.97); }
 
 #fim {
   z-index: 20;
-  background: #101b10eF;
+  background: #101b10ef;
   align-content: center;
 }
 
 #fim button {
   font-size: 17px;
   padding: 14px 22px;
-  background: #d59a26;
+  background: #e8ad32;
   color: #171717;
 }
 
 @media (max-width: 420px) {
   #topo button {
     font-size: 11px;
-    padding: 8px;
+    padding: 7px;
   }
 
   #itens { grid-template-columns: 1fr; }
-
   #baixo { gap: 8px; }
-
   #pular { min-width: 120px; }
 }
 </style>
@@ -183,9 +183,9 @@ button:active { transform: scale(.97); }
 <script>
 "use strict";
 
-/* ========================================
+/* =========================================
    SALVAMENTO
-======================================== */
+========================================= */
 
 const salvar = {
   ler(chave, padrao) {
@@ -227,6 +227,7 @@ const veiculos = [
 ];
 
 let selecionado = Number(salvar.ler("trator_veiculo", 0));
+
 if (!Number.isInteger(selecionado) ||
     selecionado < 0 || selecionado >= veiculos.length) {
   selecionado = 0;
@@ -242,7 +243,6 @@ comprados = comprados.filter(i =>
 
 if (!comprados.includes(0)) comprados.push(0);
 if (!comprados.includes(6)) comprados.push(6);
-
 if (!comprados.includes(selecionado)) selecionado = 0;
 
 let jogoPausado = false;
@@ -254,7 +254,6 @@ let vidas = 3;
 let pulos = 0;
 let invencivel = 0;
 let sceneJogo = null;
-let temporizadorFreio = null;
 
 function guardar() {
   salvar.gravar("trator_moedas", moedas);
@@ -276,9 +275,9 @@ function atualizarPausa() {
     jogoPausado ? "▶ Continuar" : "⏸ Pausar";
 }
 
-/* ========================================
-   GARAGEM E CARRETA
-======================================== */
+/* =========================================
+   GARAGEM
+========================================= */
 
 function abrirPainel(titulo, descricao) {
   if (jogoEncerrado) return;
@@ -429,7 +428,6 @@ function fecharPainel() {
 
   if (!jogoEncerrado) {
     jogoPausado = false;
-
     if (sceneJogo) sceneJogo.physics.world.resume();
   }
 
@@ -450,33 +448,43 @@ function pausar() {
   atualizarPausa();
 }
 
-/* ========================================
+/* =========================================
    CONTROLES
-======================================== */
+========================================= */
 
-function iniciarFreio() {
-  if (jogoPausado || jogoEncerrado) return;
+const botaoFreio = document.getElementById("frear");
 
-  freando = true;
-  clearTimeout(temporizadorFreio);
-  temporizadorFreio = setTimeout(() => {
-    freando = false;
-  }, 500);
+botaoFreio.addEventListener("pointerdown", e => {
+  e.preventDefault();
+
+  if (!jogoPausado && !jogoEncerrado) freando = true;
+
+  try { botaoFreio.setPointerCapture(e.pointerId); } catch (err) {}
+});
+
+function soltarFreio() {
+  freando = false;
 }
 
-document.getElementById("frear").addEventListener("pointerdown", e => {
-  e.preventDefault();
-  iniciarFreio();
-});
+botaoFreio.addEventListener("pointerup", soltarFreio);
+botaoFreio.addEventListener("pointercancel", soltarFreio);
+botaoFreio.addEventListener("lostpointercapture", soltarFreio);
+window.addEventListener("blur", soltarFreio);
 
 document.getElementById("pular").addEventListener("pointerdown", e => {
   e.preventDefault();
   if (sceneJogo) sceneJogo.pular();
 });
 
-/* ========================================
-   CONFIGURAÇÃO DO PHASER
-======================================== */
+/* =========================================
+   PHASER
+========================================= */
+
+if (typeof Phaser === "undefined") {
+  document.getElementById("game").innerHTML =
+    '<p style="padding:20px">Não foi possível carregar o jogo. Confira sua conexão com a internet e recarregue a página.</p>';
+  throw new Error("Phaser não foi carregado.");
+}
 
 const config = {
   type: Phaser.AUTO,
@@ -506,142 +514,137 @@ const config = {
 
 const game = new Phaser.Game(config);
 
-/* ========================================
-   INICIALIZAÇÃO DA PARTIDA
-======================================== */
+/* =========================================
+   CRIAR PARTIDA
+========================================= */
 
 function criarJogo() {
-  sceneJogo = this;
+  const s = this;
+  sceneJogo = s;
 
-  this.distancia = 0;
-  this.velocidade = 300;
-  this.tempoObstaculo = 0;
-  this.tempoMoeda = 0;
-  this.proximoBioma = 0;
-  this.teclaAnterior = false;
-  this.pAnterior = false;
-  this.ultimaColisao = 0;
+  s.distancia = 0;
+  s.velocidade = 300;
+  s.tempoObstaculo = 0;
+  s.tempoMoeda = 0;
+  s.ultimoBioma = -1;
+  s.teclaAnterior = false;
+  s.pAnterior = false;
+  s.proximoObstaculo = 850;
+  s.proximaMoeda = 400;
 
-  this.chaoY = this.scale.height - 75;
+  s.chaoY = s.scale.height - 75;
 
-  this.fundo = this.add.graphics().setDepth(0);
-  this.cenario = this.add.graphics().setDepth(1);
-  this.desenho = this.add.graphics().setDepth(5);
-  this.carretaDesenho = this.add.graphics().setDepth(4);
+  s.fundo = s.add.graphics().setDepth(0);
+  s.cenario = s.add.graphics().setDepth(1);
+  s.objetosDesenho = s.add.graphics().setDepth(4);
+  s.carretaDesenho = s.add.graphics().setDepth(5);
+  s.veiculoDesenho = s.add.graphics().setDepth(6);
 
-  // Corpo físico invisível do chão.
-  this.chao = this.add.rectangle(
-    this.scale.width / 2,
-    this.chaoY + 40,
-    this.scale.width + 200,
+  s.chao = s.add.rectangle(
+    s.scale.width / 2,
+    s.chaoY + 40,
+    s.scale.width + 300,
     80,
     0x000000,
     0
   );
 
-  this.physics.add.existing(this.chao, true);
+  s.physics.add.existing(s.chao, true);
 
-  // Corpo físico do veículo, separado do desenho.
-  this.jogador = this.add.rectangle(
+  s.jogador = s.add.rectangle(
     130,
-    this.chaoY - 28,
-    54,
-    38,
+    s.chaoY - 18,
+    48,
+    34,
     0x000000,
     0
   );
 
-  this.physics.add.existing(this.jogador);
+  s.physics.add.existing(s.jogador);
 
-  this.jogador.body.setCollideWorldBounds(false);
-  this.jogador.body.setGravityY(1000);
-  this.jogador.body.setMaxVelocity(650, 850);
+  s.jogador.body.setCollideWorldBounds(false);
+  s.jogador.body.setMaxVelocity(650, 850);
 
-  this.obstaculos = this.physics.add.group({
+  s.obstaculos = s.physics.add.group({
     allowGravity: false,
     immovable: true
   });
 
-  this.moedasGrupo = this.physics.add.group({
+  s.moedasGrupo = s.physics.add.group({
     allowGravity: false,
     immovable: true
   });
 
-  this.physics.add.collider(
-    this.jogador,
-    this.chao,
-    () => {
-      if (this.jogador.body.blocked.down ||
-          this.jogador.body.touching.down) {
-        pulos = 0;
-      }
+  s.physics.add.collider(s.jogador, s.chao, () => {
+    if (s.jogador.body.blocked.down ||
+        s.jogador.body.touching.down) {
+      pulos = 0;
     }
-  );
+  });
 
-  this.physics.add.overlap(
-    this.jogador,
-    this.obstaculos,
-    (jogador, obstaculo) => {
-      if (invencivel > 0 || jogoEncerrado ||
-          !obstaculo.active) return;
+  s.physics.add.overlap(s.jogador, s.obstaculos, (j, o) => {
+    if (invencivel > 0 || jogoEncerrado || !o.active) return;
 
-      obstaculo.destroy();
+    o.destroy();
+    vidas = Math.max(0, vidas - 1);
+    invencivel = 1.3;
 
-      vidas--;
-      invencivel = 1.2;
+    atualizarHUD();
 
-      atualizarHUD();
+    if (vidas <= 0) encerrarJogo();
+  });
 
-      if (vidas <= 0) encerrarJogo();
-    }
-  );
+  s.physics.add.overlap(s.jogador, s.moedasGrupo, (j, m) => {
+    if (!m.active) return;
 
-  this.physics.add.overlap(
-    this.jogador,
-    this.moedasGrupo,
-    (jogador, moeda) => {
-      if (!moeda.active) return;
+    m.destroy();
+    moedas += 10;
 
-      moeda.destroy();
-      moedas += 10;
+    guardar();
+    atualizarHUD();
+  });
 
-      guardar();
-      atualizarHUD();
-    }
-  );
-
-  this.teclas = this.input.keyboard.addKeys({
+  s.teclas = s.input.keyboard.addKeys({
     space: Phaser.Input.Keyboard.KeyCodes.SPACE,
     up: Phaser.Input.Keyboard.KeyCodes.UP,
     w: Phaser.Input.Keyboard.KeyCodes.W,
     p: Phaser.Input.Keyboard.KeyCodes.P
   });
 
-  this.input.on("pointerdown", pointer => {
-    if (painelAberto || jogoPausado || jogoEncerrado) return;
-
-    if (pointer.y > this.scale.height - 75) {
-      this.pular();
-    }
-  });
-
-  this.pular = () => {
+  s.pular = () => {
     if (jogoPausado || jogoEncerrado || painelAberto) return;
     if (pulos >= 2) return;
 
     pulos++;
 
-    // Segundo salto com impulso um pouco menor.
-    this.jogador.body.setVelocityY(pulos === 1 ? -450 : -400);
+    // O segundo toque permite um novo impulso no ar.
+    s.jogador.body.setVelocityY(pulos === 1 ? -465 : -425);
   };
 
+  // Toque no cenário também permite pular.
+  s.input.on("pointerdown", pointer => {
+    if (painelAberto || jogoPausado || jogoEncerrado) return;
+
+    if (pointer.y < s.scale.height - 65) {
+      s.pular();
+    }
+  });
+
+  s.scale.on("resize", tamanho => {
+    s.chaoY = tamanho.height - 75;
+    s.chao.setPosition(tamanho.width / 2, s.chaoY + 40);
+    s.chao.setSize(tamanho.width + 300, 80);
+    s.chao.body.updateFromGameObject();
+    desenharCenario.call(s);
+  });
+
   atualizarHUD();
-  desenharCenario.call(this);
+  desenharCenario.call(s);
 }
 
-/* ========================================
-   DESENHO: TRATOR
-======================================== */
+/* =========================================
+   DESENHAR TRATOR
+========================================= */
 
 function desenharTrator(g, x, y, cor) {
   const ret = (px, py, w, h, c) => {
@@ -656,9 +659,9 @@ function desenharTrator(g, x, y, cor) {
 
   // Sombra
   g.fillStyle(0x263525, 0.25);
-  g.fillEllipse(x + 3, y + 23, 92, 13);
+  g.fillEllipse(x + 3, y + 22, 94, 13);
 
-  // Pneus traseiros e dianteiros
+  // Pneus
   circ(x - 22, y + 12, 21, 0x151515);
   circ(x - 22, y + 12, 15, 0x333333);
   circ(x - 22, y + 12, 10, 0x777777);
@@ -668,7 +671,6 @@ function desenharTrator(g, x, y, cor) {
   circ(x + 29, y + 14, 8, 0x555555);
   circ(x + 29, y + 14, 4, 0xc3c3c3);
 
-  // Sulcos dos pneus
   g.lineStyle(2, 0x777777, 1);
 
   for (let i = 0; i < 8; i++) {
@@ -682,29 +684,23 @@ function desenharTrator(g, x, y, cor) {
     );
   }
 
-  // Eixos
   ret(x - 33, y + 1, 65, 6, 0x292d29);
 
-  // Para-lama traseiro
+  // Para-lama
   g.lineStyle(5, cor, 1);
   g.strokeCircle(x - 22, y + 12, 22);
 
-  // Capô
+  // Capô e grade
   ret(x - 7, y - 18, 43, 22, cor);
   ret(x + 19, y - 21, 17, 7, 0x343b34);
-
-  // Detalhes metálicos
   ret(x - 5, y - 2, 37, 4, 0x202620);
   ret(x + 28, y - 15, 9, 13, 0x252925);
-
-  // Grade frontal
   ret(x + 29, y - 13, 7, 9, 0x151515);
 
   for (let i = 0; i < 4; i++) {
     ret(x + 30, y - 12 + i * 2, 5, 1, 0xb5b5b5);
   }
 
-  // Faróis
   circ(x + 34, y - 17, 4, 0xffe99a);
   circ(x + 34, y - 17, 2, 0xffffff);
 
@@ -713,11 +709,9 @@ function desenharTrator(g, x, y, cor) {
   ret(x - 18, y - 39, 19, 16, 0x27322b);
   ret(x - 16, y - 37, 15, 12, 0x82d7ef);
 
-  // Reflexo no vidro
   g.lineStyle(2, 0xd7f5ff, 0.8);
   g.lineBetween(x - 14, y - 35, x - 7, y - 27);
 
-  // Teto e pilares
   ret(x - 25, y - 45, 33, 5, 0x242a24);
   ret(x - 22, y - 19, 4, 7, 0x282828);
 
@@ -729,9 +723,9 @@ function desenharTrator(g, x, y, cor) {
   ret(x - 9, y - 20, 8, 4, 0x202020);
 }
 
-/* ========================================
-   DESENHO: MOTO E PILOTO
-======================================== */
+/* =========================================
+   DESENHAR MOTO E PILOTO
+========================================= */
 
 function desenharMoto(g, x, y, cor) {
   const ret = (px, py, w, h, c) => {
@@ -747,7 +741,6 @@ function desenharMoto(g, x, y, cor) {
   g.fillStyle(0x263525, 0.25);
   g.fillEllipse(x + 1, y + 23, 77, 10);
 
-  // Rodas
   circ(x - 23, y + 12, 12, 0x141414);
   circ(x - 23, y + 12, 7, 0x777777);
   circ(x - 23, y + 12, 3, 0xc4c4c4);
@@ -768,20 +761,17 @@ function desenharMoto(g, x, y, cor) {
   ret(x - 6, y - 17, 16, 8, cor);
   ret(x - 3, y - 22, 6, 7, 0x252525);
 
-  // Banco e rabeta
   ret(x - 16, y - 14, 12, 4, 0x202020);
   ret(x + 12, y - 7, 14, 5, 0x303030);
 
-  // Farol
   circ(x + 29, y - 7, 4, 0xffedaa);
   circ(x + 29, y - 7, 2, 0xffffff);
 
-  // Guidão
   g.lineStyle(3, 0x292929, 1);
   g.lineBetween(x + 19, y - 8, x + 27, y - 17);
   g.lineBetween(x + 24, y - 14, x + 32, y - 14);
 
-  // Piloto: capacete, corpo, braços e pernas
+  // Piloto
   circ(x + 1, y - 30, 7, 0x171b1d);
   circ(x + 3, y - 31, 4, 0x4b565b);
   ret(x - 4, y - 24, 11, 13, 0x343f45);
@@ -792,9 +782,9 @@ function desenharMoto(g, x, y, cor) {
   g.lineBetween(x - 1, y - 12, x + 7, y - 3);
 }
 
-/* ========================================
-   DESENHO: CARRETA
-======================================== */
+/* =========================================
+   DESENHAR CARRETA
+========================================= */
 
 function desenharCarreta(g, x, y) {
   g.clear();
@@ -809,15 +799,13 @@ function desenharCarreta(g, x, y) {
     g.fillCircle(px, py, r);
   };
 
-  // Engate
+  // Engate atrás do trator
   ret(x - 15, y - 5, 35, 4, 0x303030);
   circ(x + 17, y - 3, 3, 0x888888);
 
-  // Caixa da carreta
+  // Caixa
   ret(x + 17, y - 29, 60, 26, 0x8b211d);
   ret(x + 20, y - 27, 54, 21, 0xd43c31);
-
-  // Bordas e detalhes
   ret(x + 18, y - 5, 59, 4, 0x79221b);
   ret(x + 20, y - 29, 58, 3, 0xb83229);
 
@@ -831,9 +819,9 @@ function desenharCarreta(g, x, y) {
   circ(x + 67, y + 3, 4, 0x888888);
 }
 
-/* ========================================
-   CENÁRIO RURAL E BIOMAS
-======================================== */
+/* =========================================
+   CENÁRIO E BIOMAS
+========================================= */
 
 function desenharCenario() {
   const w = this.scale.width;
@@ -873,22 +861,19 @@ function desenharCenario() {
 
   const bioma = Math.floor(this.distancia / 400) % 4;
 
-  // Colinas diferentes conforme a distância
-  if (bioma === 0) {
-    g.fillStyle(0x7faf69, 1);
-  } else if (bioma === 1) {
-    g.fillStyle(0x9cba76, 1);
-  } else if (bioma === 2) {
-    g.fillStyle(0x5e9655, 1);
-  } else {
-    g.fillStyle(0x8bb5a0, 1);
-  }
+  const cores = [
+    0x7faf69,
+    0x9cba76,
+    0x5e9655,
+    0x8bb5a0
+  ];
 
+  g.fillStyle(cores[bioma], 1);
   g.fillTriangle(0, this.chaoY, 100, this.chaoY - 100, 240, this.chaoY);
   g.fillTriangle(200, this.chaoY, 400, this.chaoY - 75, 570, this.chaoY);
   g.fillTriangle(w - 260, this.chaoY, w - 100, this.chaoY - 90, w, this.chaoY);
 
-  // Fazenda: celeiro ao fundo
+  // Celeiro
   if (bioma === 0 || bioma === 2) {
     const bx = w * 0.68;
     const by = this.chaoY - 60;
@@ -907,7 +892,7 @@ function desenharCenario() {
     g.lineBetween(bx + 48, by + 20, bx + 28, by + 48);
   }
 
-  // Árvores e vegetação
+  // Árvores
   const arvoreOffset = (this.distancia * 0.7) % 170;
 
   for (let i = 0; i < 8; i++) {
@@ -924,7 +909,7 @@ function desenharCenario() {
     c.fillCircle(tx + 10, ty - 24, 12);
   }
 
-  // Chão e faixa de terra
+  // Faixas do chão
   g.fillStyle(bioma === 3 ? 0x63894b : 0x659943, 1);
   g.fillRect(0, this.chaoY + 8, w, h - this.chaoY);
 
@@ -934,7 +919,6 @@ function desenharCenario() {
   g.fillStyle(0x8c754b, 1);
   g.fillRect(0, this.chaoY + 22, w, h - this.chaoY - 22);
 
-  // Pequenas marcas da terra em movimento
   g.fillStyle(0xb69a63, 0.8);
 
   const terraOffset = (this.distancia * 8) % 100;
@@ -952,10 +936,6 @@ function desenharCenario() {
     "Estrada rural"
   ];
 
-  if (this.ultimoBioma !== bioma) {
-    this.ultimoBioma = bioma;
-  }
-
   if (!this.textoBioma) {
     this.textoBioma = this.add.text(12, 10, "", {
       fontFamily: "Arial",
@@ -969,63 +949,64 @@ function desenharCenario() {
 
   this.textoBioma.setText(
     "🌾 " + nomes[bioma] +
-    "  •  " + Math.floor(this.distancia) + " m"
+    " • " + Math.floor(this.distancia) + " m"
   );
 }
 
-/* ========================================
-   OBSTÁCULOS E MOEDAS
-======================================== */
+/* =========================================
+   CRIAR OBSTÁCULOS E MOEDAS
+========================================= */
 
 function criarObstaculo() {
   const w = this.scale.width;
-  const y = this.chaoY - 12;
-
   const tipo = Math.random() < 0.5 ? "pedra" : "fardo";
+
   const largura = tipo === "pedra" ? 34 : 43;
-  const altura = tipo === "pedra" ? 29 : 25;
+  const altura = tipo === "pedra" ? 27 : 25;
 
   const o = this.add.rectangle(
-    w + 40, y, largura, altura, 0x000000, 0
+    w + 45,
+    this.chaoY - altura / 2,
+    largura,
+    altura,
+    0x000000,
+    0
   );
 
   this.physics.add.existing(o);
-
   o.body.setAllowGravity(false);
   o.body.setImmovable(true);
   o.body.setSize(largura, altura);
 
   o.tipo = tipo;
-
   this.obstaculos.add(o);
 }
 
 function criarMoeda() {
-  const w = this.scale.width;
-
   const m = this.add.circle(
-    w + 30,
-    this.chaoY - 60 - Math.random() * 65,
-    11,
+    this.scale.width + 30,
+    this.chaoY - 55 - Math.random() * 55,
+    10,
     0x000000,
     0
   );
 
   this.physics.add.existing(m);
-
   m.body.setAllowGravity(false);
   m.body.setImmovable(true);
-  m.body.setCircle(11);
+  m.body.setCircle(10);
 
   this.moedasGrupo.add(m);
 }
 
-function desenharObjetos() {
-  const g = this.desenho;
+/* =========================================
+   DESENHAR OBJETOS
+========================================= */
 
+function desenharObjetos() {
+  const g = this.objetosDesenho;
   g.clear();
 
-  // Obstáculos
   this.obstaculos.getChildren().forEach(o => {
     if (!o.active) return;
 
@@ -1045,9 +1026,7 @@ function desenharObjetos() {
       );
     } else {
       g.fillStyle(0x98723e, 1);
-      g.fillRoundedRect(
-        o.x - 22, this.chaoY - 26, 44, 25, 5
-      );
+      g.fillRoundedRect(o.x - 22, this.chaoY - 26, 44, 25, 5);
 
       g.fillStyle(0xd6b36d, 1);
       g.fillCircle(o.x, this.chaoY - 14, 10);
@@ -1057,7 +1036,6 @@ function desenharObjetos() {
     }
   });
 
-  // Moedas
   this.moedasGrupo.getChildren().forEach(m => {
     if (!m.active) return;
 
@@ -1075,45 +1053,41 @@ function desenharObjetos() {
   });
 }
 
-/* ========================================
-   ATUALIZAÇÃO DA PARTIDA
-======================================== */
+/* =========================================
+   ATUALIZAR PARTIDA
+========================================= */
 
 function atualizarJogo(time, delta) {
+  // A tecla P também funciona para retomar o jogo pausado.
+  const teclaP = this.teclas.p.isDown;
+
+  if (teclaP && !this.pAnterior && !painelAberto && !jogoEncerrado) {
+    pausar();
+  }
+
+  this.pAnterior = teclaP;
+
   if (jogoPausado || jogoEncerrado) return;
 
-  const dt = Math.min(delta / 1000, 0.05);
+  const dt = Math.min(delta / 1000, 0.04);
   const w = this.scale.width;
   const h = this.scale.height;
 
   this.chaoY = h - 75;
 
-  // Atualizar chão físico
-  this.chao.setPosition(
-    w / 2,
-    this.chaoY + 40
-  );
-
-  this.chao.setSize(w + 200, 80);
+  this.chao.setPosition(w / 2, this.chaoY + 40);
+  this.chao.setSize(w + 300, 80);
   this.chao.body.updateFromGameObject();
 
-  // Teclado: um salto por pressionamento.
-  const pressionando = this.teclas.space.isDown ||
+  // Teclado: cada pressionamento dispara um salto.
+  const pressionando =
+    this.teclas.space.isDown ||
     this.teclas.up.isDown ||
     this.teclas.w.isDown;
 
-  if (pressionando && !this.teclaAnterior) {
-    this.pular();
-  }
+  if (pressionando && !this.teclaAnterior) this.pular();
 
   this.teclaAnterior = pressionando;
-
-  // Tecla P pausa ou continua.
-  if (this.teclas.p.isDown && !this.pAnterior) {
-    pausar();
-  }
-
-  this.pAnterior = this.teclas.p.isDown;
 
   if (invencivel > 0) {
     invencivel = Math.max(0, invencivel - dt);
@@ -1121,25 +1095,24 @@ function atualizarJogo(time, delta) {
 
   // Velocidade e distância.
   this.velocidade = freando
-    ? 100
+    ? 110
     : Math.min(480, 300 + this.distancia * 0.025);
 
   this.distancia += this.velocidade * dt / 20;
   distancia = this.distancia;
 
-  // Cenário.
+  // Atualiza o cenário.
   desenharCenario.call(this);
 
-  // Intervalo de obstáculos controlado para manter
-  // espaço suficiente entre eles.
-  this.tempoObstaculo += dt;
+  // Intervalos em distância, para evitar obstáculos muito próximos.
+  this.tempoObstaculo += this.velocidade * dt;
 
-  const intervalo = Math.max(
-    1.15,
-    1.75 - this.distancia / 5000
+  const intervaloObstaculos = Math.max(
+    780,
+    980 - this.distancia * 0.015
   );
 
-  if (this.tempoObstaculo >= intervalo) {
+  if (this.tempoObstaculo >= intervaloObstaculos) {
     this.tempoObstaculo = 0;
     criarObstaculo.call(this);
   }
@@ -1151,14 +1124,14 @@ function atualizarJogo(time, delta) {
     criarMoeda.call(this);
   }
 
-  // Mover obstáculos e atualizar seus corpos físicos.
+  // Movimentação dos obstáculos.
   this.obstaculos.getChildren().forEach(o => {
     if (!o.active) return;
 
     o.x -= this.velocidade * dt;
     o.body.updateFromGameObject();
 
-    if (o.x < -70) o.destroy();
+    if (o.x < -80) o.destroy();
   });
 
   this.moedasGrupo.getChildren().forEach(m => {
@@ -1170,22 +1143,26 @@ function atualizarJogo(time, delta) {
     if (m.x < -40) m.destroy();
   });
 
-  // Ajustar área física do veículo.
+  // Atualiza o corpo físico do veículo.
   this.jogador.x = 130;
-  this.jogador.body.setSize(
-    veiculos[selecionado].tipo === "trator" ? 57 : 51,
-    36
-  );
-
-  // Desenho do veículo.
-  this.carretaDesenho.clear();
 
   const v = veiculos[selecionado];
+
+  if (v.tipo === "trator") {
+    this.jogador.body.setSize(48, 31);
+  } else {
+    this.jogador.body.setSize(45, 29);
+  }
+
+  // Desenhos independentes para evitar apagar o cenário.
+  this.veiculoDesenho.clear();
+  this.carretaDesenho.clear();
+
   const x = this.jogador.x;
   const y = this.jogador.y;
 
   if (v.tipo === "trator") {
-    desenharTrator(this.desenho, x, y, v.cor);
+    desenharTrator(this.veiculoDesenho, x, y, v.cor);
 
     if (carretaComprada && carretaEngatada) {
       desenharCarreta(
@@ -1195,17 +1172,19 @@ function atualizarJogo(time, delta) {
       );
     }
   } else {
-    desenharMoto(this.desenho, x, y, v.cor);
+    desenharMoto(this.veiculoDesenho, x, y, v.cor);
   }
 
-  // Piscar o veículo após uma colisão.
+  // Piscar brevemente depois de uma colisão.
   const alpha = invencivel > 0 && Math.floor(time / 100) % 2 === 0
     ? 0.35 : 1;
 
-  this.desenho.setAlpha(alpha);
+  this.veiculoDesenho.setAlpha(alpha);
   this.carretaDesenho.setAlpha(alpha);
 
-  // Recorde.
+  desenharObjetos.call(this);
+
+  // Recorde persistente.
   if (Math.floor(this.distancia) > recorde) {
     recorde = Math.floor(this.distancia);
     atualizarHUD();
@@ -1213,15 +1192,16 @@ function atualizarJogo(time, delta) {
   }
 }
 
-/* ========================================
+/* =========================================
    FIM DE JOGO E REINÍCIO
-======================================== */
+========================================= */
 
 function encerrarJogo() {
   if (jogoEncerrado) return;
 
   jogoEncerrado = true;
   jogoPausado = true;
+  freando = false;
 
   if (sceneJogo) sceneJogo.physics.world.pause();
 
@@ -1250,8 +1230,6 @@ function reiniciarJogo() {
   vidas = 3;
   pulos = 0;
   invencivel = 0;
-
-  clearTimeout(temporizadorFreio);
 
   atualizarHUD();
   atualizarPausa();
